@@ -139,7 +139,7 @@ def build_participant_details(resumen_df: pd.DataFrame, team_points: pd.DataFram
             total += points
             chosen_keys.append(tkey)
             picks.append({
-                'Nivel': lvl,
+                'Nivel': str(lvl),
                 'Equipo': team,
                 'Puntos acumulados': points,
                 'TEAM_KEY': tkey,
@@ -175,11 +175,10 @@ def team_card_html(team: str, points: int, highlight: bool = False, subtitle: st
     accent = C_SECONDARY if highlight else C_PRIMARY_DARK
     subtitle_html = f"<div style='color:{C_GRAY};font-size:.82rem;margin-top:.15rem'>{subtitle}</div>" if subtitle else ""
     return f"""
-    <div style="background:white;border:1px solid {border};border-left:6px solid {accent};border-radius:16px;padding:.9rem 1rem;box-shadow:{shadow};min-height:120px;">
+    <div style="background:white;border:1px solid {border};border-left:6px solid {accent};border-radius:16px;padding:.9rem 1rem;box-shadow:{shadow};min-height:116px;">
       <div style="color:{C_GRAY_DARK};font-weight:900;font-size:1.08rem;line-height:1.2;">{team}</div>
       {subtitle_html}
-      <div style="color:{accent};font-weight:900;font-size:1.55rem;margin-top:.55rem;">{points}</div>
-      <div style="color:{C_GRAY};font-size:.86rem;">puntos acumulados</div>
+      <div style="color:{accent};font-weight:900;font-size:1.55rem;margin-top:.62rem;">{points}</div>
     </div>
     """
 
@@ -222,6 +221,7 @@ style = f"""
 .detail-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.08rem; }}
 .detail-total {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; }}
 .highlight-note {{ background:rgba(241,200,49,.18); border-left:6px solid {C_SECONDARY}; border-radius:14px; padding:.75rem .9rem; color:{C_GRAY_DARK}; font-weight:700; margin:.25rem 0 1rem; }}
+.level-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin:.2rem 0 .5rem; }}
 @media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ height:auto; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} }}
 </style>
 """
@@ -285,7 +285,6 @@ rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
 with rank_tab:
     st.markdown("<div class='section-title'>Clasificación general</div>", unsafe_allow_html=True)
-    selected_name = st.session_state.get('selected_participant_name')
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
         points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
@@ -323,7 +322,7 @@ with rank_tab:
                 <div class='detail-wrap'>
                   <div class='detail-header'>
                     <div class='detail-title'>Selecciones de {detail['participante']}</div>
-                    <div class='detail-total'>Puntos acumulados de sus equipos: {int(detail['total_selecciones'])}</div>
+                    <div class='detail-total'>{int(detail['total_selecciones'])} puntos</div>
                   </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -339,14 +338,22 @@ with teams_tab:
     st.markdown("<div class='section-title'>Equipos</div>", unsafe_allow_html=True)
     selected_name = st.session_state.get('selected_participant_name')
     detail = resolve_participant(selected_name) if selected_name else None
-    selected_team_keys = set(detail['team_keys']) if detail is not None else set()
     if detail is not None:
-        st.markdown(f"<div class='highlight-note'>Equipos resaltados para <b>{detail['participante']}</b>.</div>", unsafe_allow_html=True)
-
-    cards = team_points.copy()
-    cols_per_row = 4
-    for i in range(0, len(cards), cols_per_row):
-        cols = st.columns(cols_per_row)
-        for col, (_, row) in zip(cols, cards.iloc[i:i+cols_per_row].iterrows()):
-            with col:
-                st.markdown(team_card_html(str(row['Equipo']), int(row['TOTAL']), highlight=row['TEAM_KEY'] in selected_team_keys), unsafe_allow_html=True)
+        st.markdown(f"<div class='highlight-note'>Equipos de <b>{detail['participante']}</b> organizados por niveles.</div>", unsafe_allow_html=True)
+        picks_df = pd.DataFrame(detail['equipos'])
+        for level in picks_df['Nivel'].unique().tolist():
+            st.markdown(f"<div class='level-title'>{level}</div>", unsafe_allow_html=True)
+            level_df = picks_df[picks_df['Nivel'] == level].copy()
+            cols = st.columns(min(4, len(level_df)))
+            for col, (_, row) in zip(cols, level_df.iterrows()):
+                with col:
+                    st.markdown(team_card_html(str(row['Equipo']), int(row['Puntos acumulados']), highlight=True), unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='highlight-note'>Selecciona un participante en Ranking para ver sus equipos por niveles.</div>", unsafe_allow_html=True)
+        top_df = team_points.head(12).copy()
+        cols_per_row = 4
+        for i in range(0, len(top_df), cols_per_row):
+            cols = st.columns(cols_per_row)
+            for col, (_, row) in zip(cols, top_df.iloc[i:i+cols_per_row].iterrows()):
+                with col:
+                    st.markdown(team_card_html(str(row['Equipo']), int(row['TOTAL'])), unsafe_allow_html=True)
