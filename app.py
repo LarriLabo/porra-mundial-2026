@@ -2,6 +2,7 @@
 import io
 import re
 import urllib.request
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -24,6 +25,15 @@ C_SECONDARY_LIGHT = "#F1C831"
 C_GRAY_DARK = "#383737"
 C_GRAY = "#706F6F"
 C_GRAY_LIGHT = "#D9D9D9"
+
+
+def normalize_text(text: str) -> str:
+    if pd.isna(text):
+        return ""
+    text = str(text).strip().lower()
+    text = ''.join(ch for ch in unicodedata.normalize('NFD', text) if unicodedata.category(ch) != 'Mn')
+    text = re.sub(r'[^a-z0-9]+', '', text)
+    return text
 
 
 def make_download_url(url: str) -> str:
@@ -61,7 +71,7 @@ def _find_table_start(row_values, labels, occurrence="first"):
     labels_norm = [x.strip().upper() for x in labels]
     matches = []
     for i in range(len(norm) - len(labels_norm) + 1):
-        if norm[i:i+len(labels_norm)] == labels_norm:
+        if norm[i:i + len(labels_norm)] == labels_norm:
             matches.append(i)
     if not matches:
         return None
@@ -82,14 +92,7 @@ def parse_puntos(raw: pd.DataFrame):
     if team_start is None:
         raise ValueError("No encuentro la tabla de puntos por equipo en la hoja 'Puntos'.")
 
-    ranking_prev = raw.iloc[2:, prev_start:prev_start+3].copy()
-    ranking_prev.columns = ["POS_ANTERIOR", "PARTICIPANTE", "PUNTOS_ANTERIORES"]
-    ranking_prev = ranking_prev.dropna(subset=["PARTICIPANTE"]).copy()
-    ranking_prev["PARTICIPANTE"] = ranking_prev["PARTICIPANTE"].astype(str).str.strip()
-    ranking_prev["POS_ANTERIOR"] = pd.to_numeric(ranking_prev["POS_ANTERIOR"], errors="coerce")
-    ranking_prev["PUNTOS_ANTERIORES"] = pd.to_numeric(ranking_prev["PUNTOS_ANTERIORES"], errors="coerce")
-
-    ranking = raw.iloc[2:, curr_start:curr_start+3].copy()
+    ranking = raw.iloc[2:, curr_start:curr_start + 3].copy()
     ranking.columns = ["POS", "PARTICIPANTE", "PUNTOS_TOTALES"]
     ranking = ranking.dropna(subset=["PARTICIPANTE"]).copy()
     ranking["PARTICIPANTE"] = ranking["PARTICIPANTE"].astype(str).str.strip()
@@ -97,201 +100,111 @@ def parse_puntos(raw: pd.DataFrame):
     ranking["PUNTOS_TOTALES"] = pd.to_numeric(ranking["PUNTOS_TOTALES"], errors="coerce")
     ranking = ranking.sort_values(["POS", "PUNTOS_TOTALES", "PARTICIPANTE"], ascending=[True, False, True]).reset_index(drop=True)
 
-    ranking = ranking.merge(ranking_prev[["PARTICIPANTE", "POS_ANTERIOR", "PUNTOS_ANTERIORES"]], on="PARTICIPANTE", how="left")
-    ranking["CAMBIO_POSICION"] = ranking["POS_ANTERIOR"] - ranking["POS"]
-    ranking["CAMBIO_PUNTOS"] = ranking["PUNTOS_TOTALES"] - ranking["PUNTOS_ANTERIORES"]
-
-    def movimiento(v):
-        if pd.isna(v):
-            return "🆕"
-        if v > 0:
-            return f"▲ +{int(v)}"
-        if v < 0:
-            return f"▼ {int(v)}"
-        return "• 0"
-
-    ranking["MOVIMIENTO"] = ranking["CAMBIO_POSICION"].apply(movimiento)
-
-    team_points = raw.iloc[2:, team_start:team_start+9].copy()
+    team_points = raw.iloc[2:, team_start:team_start + 9].copy()
     team_points.columns = ["Equipo", "Fase_Grupos", "Dieciseisavos", "Octavos", "Cuartos", "Semis", "Final", "Campeon", "TOTAL"]
     team_points = team_points.dropna(subset=["Equipo"]).copy()
     team_points["Equipo"] = team_points["Equipo"].astype(str).str.strip()
     for col in [c for c in team_points.columns if c != "Equipo"]:
         team_points[col] = pd.to_numeric(team_points[col], errors="coerce").fillna(0)
     team_points = team_points.sort_values(["TOTAL", "Equipo"], ascending=[False, True]).reset_index(drop=True)
+    team_points["TEAM_KEY"] = team_points["Equipo"].apply(normalize_text)
     return ranking, team_points
+
+
+def parse_resumen_apuestas(raw_resumen: pd.DataFrame, team_points: pd.DataFrame):
+    resumen = raw_resumen.copy()
+    if "PARTICIPANTE" not in resumen.columns:
+        raise ValueError("No encuentro la columna PARTICIPANTE en la hoja 'Resumen de Apuestas'.")
+
+    puntos_por_equipo = dict(zip(team_points["TEAM_KEY"], team_points["TOTAL"]))
+    nivels = [c for c in resumen.columns if str(c).strip().lower().startswith('nivel')]
+
+    details = {}
+    for _, row in resumen.iterrows():
+        participant = str(row["PARTICIPANTE"]).strip()
+        pkey = normalize_text(participant)
+        picks = []
+        total_sel = 0
+        for nivel in nivels:
+            equipo = row[nivel]
+            if pd.isna(equipo):
+                continue
+            equipo = str(equipo).strip()
+            pts = int(puntos_por_equipo.get(normalize_text(equipo), 0))
+            total_sel += pts
+            picks.append({
+                "Nivel": nivel,
+                "Equipo": equipo,
+                "Puntos acumulados": pts,
+            })
+        details[pkey] = {
+            "participante": participant,
+            "total_selecciones": total_sel,
+            "tabla": pd.DataFrame(picks),
+        }
+    return details
 
 
 def load_data():
     download_url = make_download_url(SOURCE_URL)
     file_bytes = download_bytes(download_url)
-    sheets = read_workbook(file_bytes)
+    sheets = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None, engine="openpyxl")
+    raw_puntos = pd.read_excel(io.BytesIO(file_bytes), sheet_name='Puntos', header=None, engine='openpyxl')
+
     if "Puntos" not in sheets:
         raise ValueError(f"El Excel exportado no contiene una hoja llamada 'Puntos'. Hojas detectadas: {list(sheets.keys())}")
-    ranking, team_points = parse_puntos(sheets["Puntos"])
-    return ranking, team_points
+    if "Resumen de Apuestas" not in sheets:
+        raise ValueError(f"El Excel exportado no contiene una hoja llamada 'Resumen de Apuestas'. Hojas detectadas: {list(sheets.keys())}")
+
+    ranking, team_points = parse_puntos(raw_puntos)
+    details = parse_resumen_apuestas(sheets["Resumen de Apuestas"], team_points)
+    return ranking, team_points, details
 
 
 st.markdown(f"""
 <style>
-.stApp {{
-  background: linear-gradient(180deg, #ffffff 0%, #f4f8f9 40%, #eef5f6 100%);
-}}
-.block-container {{
-  max-width: 1180px;
-  padding-top: 1.15rem;
-  padding-bottom: 2rem;
-}}
-#MainMenu, footer, header {{visibility: hidden;}}
-
-.title-wrap {{
-  background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 58%, {C_PRIMARY_LIGHT} 100%);
-  border-radius: 24px;
-  padding: 1.2rem 1.35rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 18px 40px rgba(0, 74, 95, .24);
-}}
-.title-main {{
-  color: #ffffff;
-  font-size: 2.35rem;
-  font-weight: 900;
-  line-height: 1.05;
-  margin: 0;
-}}
-.title-sub {{
-  color: rgba(255,255,255,.98);
-  margin-top: .35rem;
-  font-size: 1rem;
-  font-weight: 600;
-}}
-.section-title {{
-  color: {C_PRIMARY_DARK};
-  font-weight: 900;
-  font-size: 1.25rem;
-}}
-
-.kpi-card {{
-  background: white;
-  border: 1px solid rgba(50, 125, 142, .18);
-  border-radius: 18px;
-  padding: .95rem 1rem .8rem;
-  box-shadow: 0 8px 22px rgba(50,125,142,.08);
-  min-height: 106px;
-}}
-.kpi-label {{
-  color: {C_GRAY_DARK};
-  font-size: .96rem;
-  font-weight: 700;
-  margin-bottom: .25rem;
-}}
-.kpi-value {{
-  color: {C_PRIMARY_DARK};
-  font-size: 1.8rem;
-  font-weight: 900;
-  line-height: 1.05;
-}}
-
-.podium-card {{
-  border-radius: 18px;
-  padding: 1rem 1rem .9rem;
-  min-height: 140px;
-  color: white;
-  box-shadow: 0 10px 22px rgba(0,0,0,.10);
-}}
+.stApp {{ background: linear-gradient(180deg, #ffffff 0%, #f4f8f9 40%, #eef5f6 100%); }}
+.block-container {{ max-width: 1180px; padding-top: 1.15rem; padding-bottom: 2rem; }}
+#MainMenu, footer, header {{ visibility: hidden; }}
+.title-wrap {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 58%, {C_PRIMARY_LIGHT} 100%); border-radius: 24px; padding: 1.2rem 1.35rem; margin-bottom: 1rem; box-shadow: 0 18px 40px rgba(0, 74, 95, .24); }}
+.title-main {{ color: #ffffff; font-size: 2.35rem; font-weight: 900; line-height: 1.05; margin: 0; }}
+.title-sub {{ color: rgba(255,255,255,.98); margin-top: .35rem; font-size: 1rem; font-weight: 600; }}
+.section-title {{ color: {C_PRIMARY_DARK}; font-weight: 900; font-size: 1.25rem; }}
+.kpi-card {{ background: white; border: 1px solid rgba(50, 125, 142, .18); border-radius: 18px; padding: .95rem 1rem .8rem; box-shadow: 0 8px 22px rgba(50,125,142,.08); min-height: 106px; }}
+.kpi-label {{ color: {C_GRAY_DARK}; font-size: .96rem; font-weight: 700; margin-bottom: .25rem; }}
+.kpi-value {{ color: {C_PRIMARY_DARK}; font-size: 1.8rem; font-weight: 900; line-height: 1.05; }}
+.podium-card {{ border-radius: 18px; padding: 1rem 1rem .9rem; min-height: 140px; color: white; box-shadow: 0 10px 22px rgba(0,0,0,.10); }}
 .podium-gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK} 0%, {C_SECONDARY} 55%, {C_SECONDARY_LIGHT} 100%); color: #ffffff; }}
 .podium-silver {{ background: linear-gradient(135deg, {C_GRAY} 0%, #9C9B9B 60%, {C_GRAY_LIGHT} 100%); color: {C_GRAY_DARK}; }}
 .podium-bronze {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); color: #ffffff; }}
 .podium-rank {{ font-size: 1.85rem; margin-bottom: .35rem; }}
 .podium-name {{ font-weight: 900; font-size: 1.08rem; }}
 .podium-points {{ margin-top: .35rem; font-size: 1rem; font-weight: 800; }}
-
-.stTabs [data-baseweb="tab-list"] {{
-  gap: .45rem;
-  border-bottom: 2px solid rgba(0,74,95,.12);
-}}
-.stTabs [data-baseweb="tab"] {{
-  color: {C_PRIMARY_DARK} !important;
-  font-weight: 900 !important;
-  font-size: 1rem !important;
-  background: rgba(255,255,255,.76) !important;
-  border-radius: 12px 12px 0 0 !important;
-  padding: .45rem .95rem !important;
-}}
-.stTabs [data-baseweb="tab"]:hover {{
-  color: {C_PRIMARY_DARK} !important;
-  background: rgba(100,174,188,.12) !important;
-}}
-.stTabs [aria-selected="true"] {{
-  color: {C_PRIMARY_DARK} !important;
-  background: rgba(100,174,188,.18) !important;
-  border-bottom: 3px solid {C_PRIMARY_DARK} !important;
-}}
-
-.rank-row {{
-  display: grid;
-  grid-template-columns: 78px 1.8fr 130px;
-  gap: .75rem;
-  align-items: center;
-  background: #ffffff;
-  border: 1px solid rgba(80,80,80,.10);
-  border-left: 6px solid {C_PRIMARY_LIGHT};
-  border-radius: 16px;
-  padding: .8rem .95rem;
-  margin-bottom: .5rem;
-  box-shadow: 0 6px 18px rgba(0,0,0,.04);
-}}
+.stTabs [data-baseweb="tab-list"] {{ gap: .45rem; border-bottom: 2px solid rgba(0,74,95,.12); }}
+.stTabs [data-baseweb="tab"] {{ color: {C_PRIMARY_DARK} !important; font-weight: 900 !important; font-size: 1rem !important; background: rgba(255,255,255,.76) !important; border-radius: 12px 12px 0 0 !important; padding: .45rem .95rem !important; }}
+.stTabs [aria-selected="true"] {{ color: {C_PRIMARY_DARK} !important; background: rgba(100,174,188,.18) !important; border-bottom: 3px solid {C_PRIMARY_DARK} !important; }}
+.rank-row {{ display: grid; grid-template-columns: 78px 1.8fr 130px; gap: .75rem; align-items: center; background: #ffffff; border: 1px solid rgba(80,80,80,.10); border-left: 6px solid {C_PRIMARY_LIGHT}; border-radius: 16px; padding: .8rem .95rem; margin-bottom: .5rem; box-shadow: 0 6px 18px rgba(0,0,0,.04); }}
 .rank-row.top1 {{ border-left-color: {C_SECONDARY_LIGHT}; background: linear-gradient(90deg, rgba(241,200,49,.16), white 26%); }}
 .rank-row.top2 {{ border-left-color: {C_GRAY}; background: linear-gradient(90deg, rgba(217,217,217,.28), white 26%); }}
 .rank-row.top3 {{ border-left-color: {C_SECONDARY}; background: linear-gradient(90deg, rgba(242,142,0,.13), white 26%); }}
-
-.pos-badge {{
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  background: {C_PRIMARY_DARK};
-  font-weight: 900;
-  font-size: 1.2rem;
-  box-shadow: inset 0 0 0 4px rgba(255,255,255,.15);
-}}
+.pos-badge {{ width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; background: {C_PRIMARY_DARK}; font-weight: 900; font-size: 1.2rem; box-shadow: inset 0 0 0 4px rgba(255,255,255,.15); }}
 .pos-badge.gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY_LIGHT}); color: #ffffff; }}
 .pos-badge.silver {{ background: linear-gradient(135deg, {C_GRAY}, {C_GRAY_LIGHT}); color: {C_GRAY_DARK}; }}
 .pos-badge.bronze {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY}); color: #ffffff; }}
-
 .rank-name {{ font-weight: 900; color: {C_GRAY_DARK}; font-size: 1.03rem; }}
 .rank-sub {{ color: {C_GRAY_DARK}; font-size: .84rem; opacity: .88; margin-top: .1rem; }}
 .rank-points {{ font-weight: 900; color: {C_PRIMARY_DARK}; font-size: 1.4rem; text-align: center; }}
 .rank-label {{ color: {C_PRIMARY_DARK}; font-size: .82rem; text-align: center; font-weight: 800; }}
-.tag {{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  padding: .35rem .65rem;
-  font-size: .82rem;
-  font-weight: 800;
-  width: fit-content;
-}}
-.tag-up {{ background: rgba(100,174,188,.2); color: {C_PRIMARY_DARK}; }}
-.tag-down {{ background: rgba(242,142,0,.16); color: {C_SECONDARY_DARK}; }}
-.tag-flat {{ background: rgba(112,111,111,.14); color: {C_GRAY_DARK}; }}
-.tag-new {{ background: rgba(241,200,49,.22); color: {C_SECONDARY_DARK}; }}
-.delta-box {{ text-align: center; font-weight: 900; color: {C_GRAY_DARK}; }}
 .tab-hint, p, li, label {{ color: {C_GRAY_DARK} !important; }}
-
-@media (max-width: 900px) {{
-  .title-main {{ font-size: 1.85rem; }}
-  .rank-row {{ grid-template-columns: 64px 1fr; gap: .55rem; }}
-  .rank-points, .rank-label, .delta-box, .tag {{ text-align: left; }}
-}}
+.detail-card {{ background: rgba(255,255,255,.86); border: 1px solid rgba(50,125,142,.16); border-radius: 16px; padding: .9rem 1rem; margin: .25rem 0 .85rem; }}
+.detail-title {{ color: {C_PRIMARY_DARK}; font-weight: 900; font-size: 1rem; margin-bottom: .35rem; }}
+.detail-total {{ color: {C_SECONDARY_DARK}; font-weight: 800; margin-bottom: .6rem; }}
+@media (max-width: 900px) {{ .title-main {{ font-size: 1.85rem; }} .rank-row {{ grid-template-columns: 64px 1fr; gap: .55rem; }} .rank-points, .rank-label {{ text-align: left; }} }}
 </style>
 """, unsafe_allow_html=True)
 
 try:
-    ranking, team_points = load_data()
+    ranking, team_points, details = load_data()
 except Exception as e:
     st.error(f"No se pudo cargar la clasificación: {e}")
     st.stop()
@@ -342,12 +255,11 @@ rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
 with rank_tab:
     st.markdown("<div class='section-title'>Clasificación general</div>", unsafe_allow_html=True)
-    st.markdown("<div class='tab-hint'>Vista pública de la clasificación con estilo deportivo y lectura rápida.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='tab-hint'>Pulsa sobre cada participante para ver sus equipos seleccionados y los puntos acumulados de cada equipo.</div>", unsafe_allow_html=True)
 
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
         points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
-
         badge_class = ''
         row_class = ''
         medal = ''
@@ -358,21 +270,32 @@ with rank_tab:
         elif pos == 3:
             badge_class = 'bronze'; row_class = 'top3'; medal = ' · 3º puesto'
 
-        st.markdown(f"""
-        <div class='rank-row {row_class}'>
-            <div class='pos-badge {badge_class}'>{pos}</div>
-            <div>
-                <div class='rank-name'>{row['PARTICIPANTE']}</div>
-                <div class='rank-sub'>Posición actual{medal}</div>
+        participant = str(row['PARTICIPANTE']).strip()
+        pkey = normalize_text(participant)
+        detail = details.get(pkey)
+
+        with st.expander(f"#{pos} · {participant} · {points} puntos", expanded=False):
+            st.markdown(f"""
+            <div class='rank-row {row_class}'>
+                <div class='pos-badge {badge_class}'>{pos}</div>
+                <div>
+                    <div class='rank-name'>{participant}</div>
+                    <div class='rank-sub'>Posición actual{medal}</div>
+                </div>
+                <div>
+                    <div class='rank-label'>Puntos</div>
+                    <div class='rank-points'>{points}</div>
+                </div>
             </div>
-            <div>
-                <div class='rank-label'>Puntos</div>
-                <div class='rank-points'>{points}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+
+            if detail is None or detail['tabla'].empty:
+                st.warning("No se encontraron equipos seleccionados para este participante en la hoja 'Resumen de Apuestas'.")
+            else:
+                st.markdown(f"<div class='detail-card'><div class='detail-title'>Equipos seleccionados de {detail['participante']}</div><div class='detail-total'>Puntos acumulados de sus selecciones: {int(detail['total_selecciones'])}</div></div>", unsafe_allow_html=True)
+                st.dataframe(detail['tabla'], use_container_width=True, hide_index=True)
 
 with teams_tab:
     st.markdown("<div class='section-title'>Puntos por equipo</div>", unsafe_allow_html=True)
     st.markdown("<div class='tab-hint'>Selecciones que más están aportando puntos a la porra.</div>", unsafe_allow_html=True)
-    st.dataframe(team_points, use_container_width=True, hide_index=True)
+    st.dataframe(team_points.drop(columns=['TEAM_KEY']), use_container_width=True, hide_index=True)
