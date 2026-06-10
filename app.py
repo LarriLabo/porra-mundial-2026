@@ -343,7 +343,7 @@ with c2:
 with c3:
     st.markdown(podium_group_html('🥉 3º', podium_groups[3]['names'], podium_groups[3]['points'], '', 'podium-3'), unsafe_allow_html=True)
 
-rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
+rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Puntos de selecciones por nivel'])
 
 with rank_tab:
     st.markdown(f"<div class='section-title'>Clasificación general ({participant_count} participantes)</div>", unsafe_allow_html=True)
@@ -383,7 +383,7 @@ with rank_tab:
                             st.markdown(team_card_html(pick['Equipo'], int(pick['Puntos']), accent, subtitle=pick['Nivel']), unsafe_allow_html=True)
 
 with teams_tab:
-    st.markdown("<div class='section-title'>Equipos</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Puntos de selecciones por nivel</div>", unsafe_allow_html=True)
     for level, items in teams_by_level.items():
         accent = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
         st.markdown(f"<div class='level-title' style='color:{accent}'>{level}</div>", unsafe_allow_html=True)
