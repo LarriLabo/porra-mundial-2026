@@ -237,7 +237,7 @@ style = f"""
 .detail-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.08rem; }}
 .detail-total {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; }}
 .level-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.02rem; margin:.3rem 0 .55rem; }}
-div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button {
+div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button {{
   width: 34px !important;
   min-width: 34px !important;
   height: 34px !important;
@@ -249,9 +249,9 @@ div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button {
   opacity: .55 !important;
   color: {C_PRIMARY_DARK} !important;
   font-size: 1rem !important;
-}
-div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button p { color: {C_PRIMARY_DARK} !important; font-size: 1rem !important; }
-div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button:hover { opacity: .9 !important; background: rgba(0, 74, 95, .12) !important; }
+}}
+div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button p {{ color: {C_PRIMARY_DARK} !important; font-size: 1rem !important; }}
+div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button:hover {{ opacity: .9 !important; background: rgba(0, 74, 95, .12) !important; }}
 @media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ height:auto; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} }}
 </style>
 """
