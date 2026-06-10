@@ -192,6 +192,16 @@ def team_card_html(team: str, points: int, accent: str, subtitle: str = ''):
     """
 
 
+def podium_group_html(place_label: str, names: list[str], points: int, box_class: str) -> str:
+    if not names:
+        names_html = "—"
+        points_html = ""
+    else:
+        names_html = "<br>".join(names)
+        points_html = f"<div class='podium-points'>{points} puntos</div>"
+    return f"<div class='podium-wrap'><div class='podium-slot'><div class='podium-box {box_class}'><div class='podium-step-label'>{place_label}</div><div class='podium-name podium-name-multi'>{names_html}</div>{points_html}</div></div></div>"
+
+
 style = f"""
 <style>
 .stApp {{ background: linear-gradient(180deg, #ffffff 0%, {C_BG} 45%, #eef5f6 100%); }}
@@ -209,6 +219,7 @@ style = f"""
 .podium-3 {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); min-height:145px; }}
 .podium-step-label {{ font-size:2rem; font-weight:900; margin-bottom:.25rem; text-align:center; }}
 .podium-name {{ font-weight:900; font-size:1.08rem; margin-top:.45rem; line-height:1.18; text-align:center; max-width:100%; overflow-wrap:anywhere; }}
+.podium-name-multi {{ font-size:1rem; line-height:1.25; }}
 .podium-points {{ margin-top:.5rem; font-size:1rem; font-weight:800; text-align:center; }}
 .stTabs [data-baseweb="tab-list"] {{ gap:.45rem; border-bottom:2px solid rgba(0,74,95,.12); }}
 .stTabs [data-baseweb="tab"] {{ color:{C_PRIMARY_DARK} !important; font-weight:900 !important; font-size:1.03rem !important; background:rgba(255,255,255,.76) !important; border-radius:12px 12px 0 0 !important; padding:.55rem 1rem !important; }}
@@ -258,18 +269,23 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>🏅 Podium</div>", unsafe_allow_html=True)
-podium = ranking.nsmallest(3, 'POS')[['PARTICIPANTE', 'PUNTOS_TOTALES']].reset_index(drop=True)
-if len(podium) >= 3:
-    c1, c2, c3 = st.columns([1.15, 1, 0.9])
-    with c1:
-        row = podium.iloc[0]
-        st.markdown(f"<div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-1'><div class='podium-step-label'>🥇 1º</div><div class='podium-name'>{row['PARTICIPANTE']}</div><div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div></div></div></div>", unsafe_allow_html=True)
-    with c2:
-        row = podium.iloc[1]
-        st.markdown(f"<div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-2'><div class='podium-step-label'>🥈 2º</div><div class='podium-name'>{row['PARTICIPANTE']}</div><div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div></div></div></div>", unsafe_allow_html=True)
-    with c3:
-        row = podium.iloc[2]
-        st.markdown(f"<div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-3'><div class='podium-step-label'>🥉 3º</div><div class='podium-name'>{row['PARTICIPANTE']}</div><div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div></div></div></div>", unsafe_allow_html=True)
+podium_groups = {}
+for pos in [1, 2, 3]:
+    group = ranking[pd.to_numeric(ranking['POS'], errors='coerce') == pos].copy()
+    if group.empty:
+        podium_groups[pos] = {'names': [], 'points': 0}
+    else:
+        names = group.sort_values(['PARTICIPANTE'])['PARTICIPANTE'].astype(str).tolist()
+        points = int(group['PUNTOS_TOTALES'].max())
+        podium_groups[pos] = {'names': names, 'points': points}
+
+c1, c2, c3 = st.columns([1.15, 1, 0.9])
+with c1:
+    st.markdown(podium_group_html('🥇 1º', podium_groups[1]['names'], podium_groups[1]['points'], 'podium-1'), unsafe_allow_html=True)
+with c2:
+    st.markdown(podium_group_html('🥈 2º', podium_groups[2]['names'], podium_groups[2]['points'], 'podium-2'), unsafe_allow_html=True)
+with c3:
+    st.markdown(podium_group_html('🥉 3º', podium_groups[3]['names'], podium_groups[3]['points'], 'podium-3'), unsafe_allow_html=True)
 
 rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
