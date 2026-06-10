@@ -229,7 +229,7 @@ st.markdown(f"""
 
 .rank-row {{
   display: grid;
-  grid-template-columns: 78px 1.6fr 130px 120px 110px;
+  grid-template-columns: 78px 1.8fr 130px;
   gap: .75rem;
   align-items: center;
   background: #ffffff;
@@ -319,8 +319,8 @@ with k2:
 with k3:
     st.markdown(f"<div class='kpi-card'><div class='kpi-label'>Puntos del líder</div><div class='kpi-value'>{int(leader['PUNTOS_TOTALES'])}</div></div>", unsafe_allow_html=True)
 with k4:
-    max_delta = int(ranking['CAMBIO_PUNTOS'].fillna(0).max())
-    st.markdown(f"<div class='kpi-card'><div class='kpi-label'>Mayor subida</div><div class='kpi-value'>+{max_delta}</div></div>", unsafe_allow_html=True)
+    third_points = int(ranking.nsmallest(min(3, len(ranking)), 'POS').iloc[min(2, len(ranking)-1)]['PUNTOS_TOTALES']) if len(ranking) > 0 else 0
+    st.markdown(f"<div class='kpi-card'><div class='kpi-label'>Puntos del 3º</div><div class='kpi-value'>{third_points}</div></div>", unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>🏅 Podium</div>", unsafe_allow_html=True)
 podium = ranking.nsmallest(3, 'POS')[['PARTICIPANTE', 'PUNTOS_TOTALES']].reset_index(drop=True)
@@ -347,27 +347,6 @@ with rank_tab:
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
         points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
-        mov = str(row['MOVIMIENTO'])
-        if mov.startswith('▲'):
-            tag_class = 'tag-up'
-        elif mov.startswith('▼'):
-            tag_class = 'tag-down'
-        elif mov.startswith('🆕'):
-            tag_class = 'tag-new'
-        else:
-            tag_class = 'tag-flat'
-
-        badge_class = ''
-        row_class = ''
-        medal = ''
-        if pos == 1:
-            badge_class = 'gold'; row_class = 'top1'; medal = ' · Campeón provisional'
-        elif pos == 2:
-            badge_class = 'silver'; row_class = 'top2'; medal = ' · 2º puesto'
-        elif pos == 3:
-            badge_class = 'bronze'; row_class = 'top3'; medal = ' · 3º puesto'
-
-        delta_points = int(row['CAMBIO_PUNTOS']) if pd.notna(row['CAMBIO_PUNTOS']) else 0
         st.markdown(f"""
         <div class='rank-row {row_class}'>
             <div class='pos-badge {badge_class}'>{pos}</div>
@@ -378,14 +357,6 @@ with rank_tab:
             <div>
                 <div class='rank-label'>Puntos</div>
                 <div class='rank-points'>{points}</div>
-            </div>
-            <div style='text-align:center;'>
-                <div class='rank-label'>Movimiento</div>
-                <div class='tag {tag_class}'>{mov}</div>
-            </div>
-            <div class='delta-box'>
-                <div class='rank-label'>Δ puntos</div>
-                <div>{delta_points:+d}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
