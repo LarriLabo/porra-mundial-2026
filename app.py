@@ -206,10 +206,7 @@ st.markdown(f"""
 .stTabs [data-baseweb="tab-list"] {{ gap:.45rem; border-bottom:2px solid rgba(0,74,95,.12); }}
 .stTabs [data-baseweb="tab"] {{ color:{C_PRIMARY_DARK} !important; font-weight:900 !important; font-size:1rem !important; background:rgba(255,255,255,.76) !important; border-radius:12px 12px 0 0 !important; padding:.45rem .95rem !important; }}
 .stTabs [aria-selected="true"] {{ color:{C_PRIMARY_DARK} !important; background:rgba(100,174,188,.18) !important; border-bottom:3px solid {C_PRIMARY_DARK} !important; }}
-.rank-shell {{ background:#fff; border:1px solid rgba(80,80,80,.10); border-left:6px solid {C_PRIMARY_LIGHT}; border-radius:16px; padding:.8rem .95rem; margin-bottom:.5rem; box-shadow:0 6px 18px rgba(0,0,0,.04); }}
-.rank-shell.top1 {{ border-left-color:{C_SECONDARY_LIGHT}; background:linear-gradient(90deg, rgba(241,200,49,.16), white 26%); }}
-.rank-shell.top2 {{ border-left-color:{C_GRAY}; background:linear-gradient(90deg, rgba(217,217,217,.28), white 26%); }}
-.rank-shell.top3 {{ border-left-color:{C_SECONDARY}; background:linear-gradient(90deg, rgba(242,142,0,.13), white 26%); }}
+.rank-row-bg { background: rgba(255,255,255,.72); border-radius: 18px; padding: .2rem .55rem; margin-bottom: .35rem; }
 .pos-badge {{ width:54px; height:54px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; background:{C_PRIMARY_DARK}; font-weight:900; font-size:1.2rem; box-shadow: inset 0 0 0 4px rgba(255,255,255,.15); }}
 .pos-badge.gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY_LIGHT}); }}
 .pos-badge.silver {{ background: linear-gradient(135deg, {C_GRAY}, {C_GRAY_LIGHT}); color:{C_GRAY_DARK}; }}
@@ -288,7 +285,6 @@ rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
 with rank_tab:
     st.markdown("<div class='section-title'>Clasificación general</div>", unsafe_allow_html=True)
-    st.markdown("<div class='tab-hint'>Pulsa el botón del participante para ver sus selecciones justo debajo de su fila. La selección también se resalta en la pestaña Equipos.</div>", unsafe_allow_html=True)
 
     selected_name = st.session_state.get('selected_participant_name')
     for _, row in ranking.iterrows():
@@ -297,15 +293,14 @@ with rank_tab:
         participant = str(row['PARTICIPANTE']).strip()
 
         badge_class = ''
-        row_class = ''
         if pos == 1:
-            badge_class = 'gold'; row_class = 'top1'
+            badge_class = 'gold'
         elif pos == 2:
-            badge_class = 'silver'; row_class = 'top2'
+            badge_class = 'silver'
         elif pos == 3:
-            badge_class = 'bronze'; row_class = 'top3'
+            badge_class = 'bronze'
 
-        st.markdown(f"<div class='rank-shell {row_class}'>", unsafe_allow_html=True)
+        st.markdown("<div class='rank-row-bg'>", unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns([0.7, 3.3, 1.2, 1.35])
         with c1:
             st.markdown(f"<div class='pos-badge {badge_class}'>{pos}</div>", unsafe_allow_html=True)
