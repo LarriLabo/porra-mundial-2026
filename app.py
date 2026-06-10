@@ -347,6 +347,17 @@ with rank_tab:
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
         points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
+
+        badge_class = ''
+        row_class = ''
+        medal = ''
+        if pos == 1:
+            badge_class = 'gold'; row_class = 'top1'; medal = ' · Campeón provisional'
+        elif pos == 2:
+            badge_class = 'silver'; row_class = 'top2'; medal = ' · 2º puesto'
+        elif pos == 3:
+            badge_class = 'bronze'; row_class = 'top3'; medal = ' · 3º puesto'
+
         st.markdown(f"""
         <div class='rank-row {row_class}'>
             <div class='pos-badge {badge_class}'>{pos}</div>
