@@ -24,7 +24,6 @@ C_SECONDARY_LIGHT = "#F1C831"
 C_GRAY_DARK = "#383737"
 C_GRAY = "#706F6F"
 C_GRAY_LIGHT = "#D9D9D9"
-C_BG = "#F7F9FA"
 
 
 def make_download_url(url: str) -> str:
@@ -98,11 +97,7 @@ def parse_puntos(raw: pd.DataFrame):
     ranking["PUNTOS_TOTALES"] = pd.to_numeric(ranking["PUNTOS_TOTALES"], errors="coerce")
     ranking = ranking.sort_values(["POS", "PUNTOS_TOTALES", "PARTICIPANTE"], ascending=[True, False, True]).reset_index(drop=True)
 
-    ranking = ranking.merge(
-        ranking_prev[["PARTICIPANTE", "POS_ANTERIOR", "PUNTOS_ANTERIORES"]],
-        on="PARTICIPANTE",
-        how="left",
-    )
+    ranking = ranking.merge(ranking_prev[["PARTICIPANTE", "POS_ANTERIOR", "PUNTOS_ANTERIORES"]], on="PARTICIPANTE", how="left")
     ranking["CAMBIO_POSICION"] = ranking["POS_ANTERIOR"] - ranking["POS"]
     ranking["CAMBIO_PUNTOS"] = ranking["PUNTOS_TOTALES"] - ranking["PUNTOS_ANTERIORES"]
 
@@ -139,72 +134,39 @@ def load_data():
 
 st.markdown(f"""
 <style>
-:root {{
-  --c-primary-dark: {C_PRIMARY_DARK};
-  --c-primary: {C_PRIMARY};
-  --c-primary-light: {C_PRIMARY_LIGHT};
-  --c-secondary-dark: {C_SECONDARY_DARK};
-  --c-secondary: {C_SECONDARY};
-  --c-secondary-light: {C_SECONDARY_LIGHT};
-  --c-gray-dark: {C_GRAY_DARK};
-  --c-gray: {C_GRAY};
-  --c-gray-light: {C_GRAY_LIGHT};
-  --c-bg: {C_BG};
-}}
-
 .stApp {{
-  background: linear-gradient(180deg, #ffffff 0%, #f7f9fa 35%, #eef5f6 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8f9 40%, #eef5f6 100%);
 }}
-
 .block-container {{
   max-width: 1180px;
-  padding-top: 1.2rem;
+  padding-top: 1.15rem;
   padding-bottom: 2rem;
 }}
-
 #MainMenu, footer, header {{visibility: hidden;}}
 
 .title-wrap {{
-  background: linear-gradient(135deg, var(--c-primary-dark) 0%, var(--c-primary) 58%, var(--c-primary-light) 100%);
+  background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 58%, {C_PRIMARY_LIGHT} 100%);
   border-radius: 24px;
-  padding: 1.25rem 1.35rem;
+  padding: 1.2rem 1.35rem;
   margin-bottom: 1rem;
-  box-shadow: 0 18px 40px rgba(0, 74, 95, .22);
+  box-shadow: 0 18px 40px rgba(0, 74, 95, .24);
 }}
-
-.title-grid {{
-  display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: 1rem;
-  align-items: center;
-}}
-
-.logo-box {{
-  background: rgba(255,255,255,.92);
-  border-radius: 18px;
-  padding: .55rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}}
-
 .title-main {{
-  color: white;
+  color: #ffffff;
   font-size: 2.35rem;
-  font-weight: 800;
+  font-weight: 900;
   line-height: 1.05;
   margin: 0;
 }}
-
 .title-sub {{
-  color: rgba(255,255,255,.92);
+  color: rgba(255,255,255,.98);
   margin-top: .35rem;
   font-size: 1rem;
+  font-weight: 600;
 }}
-
 .section-title {{
-  color: var(--c-primary-dark);
-  font-weight: 800;
+  color: {C_PRIMARY_DARK};
+  font-weight: 900;
   font-size: 1.25rem;
 }}
 
@@ -216,17 +178,16 @@ st.markdown(f"""
   box-shadow: 0 8px 22px rgba(50,125,142,.08);
   min-height: 106px;
 }}
-
 .kpi-label {{
-  color: var(--c-gray);
-  font-size: .9rem;
+  color: {C_GRAY_DARK};
+  font-size: .96rem;
+  font-weight: 700;
   margin-bottom: .25rem;
 }}
-
 .kpi-value {{
-  color: var(--c-primary-dark);
+  color: {C_PRIMARY_DARK};
   font-size: 1.8rem;
-  font-weight: 800;
+  font-weight: 900;
   line-height: 1.05;
 }}
 
@@ -237,31 +198,51 @@ st.markdown(f"""
   color: white;
   box-shadow: 0 10px 22px rgba(0,0,0,.10);
 }}
-
-.podium-gold {{ background: linear-gradient(135deg, #CC6100 0%, #F28E00 55%, #F1C831 100%); }}
-.podium-silver {{ background: linear-gradient(135deg, #706F6F 0%, #9C9B9B 60%, #D9D9D9 100%); color: #383737; }}
-.podium-bronze {{ background: linear-gradient(135deg, #8C5425 0%, #CC6100 65%, #F28E00 100%); }}
+.podium-gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK} 0%, {C_SECONDARY} 55%, {C_SECONDARY_LIGHT} 100%); color: #ffffff; }}
+.podium-silver {{ background: linear-gradient(135deg, {C_GRAY} 0%, #9C9B9B 60%, {C_GRAY_LIGHT} 100%); color: {C_GRAY_DARK}; }}
+.podium-bronze {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); color: #ffffff; }}
 .podium-rank {{ font-size: 1.85rem; margin-bottom: .35rem; }}
-.podium-name {{ font-weight: 800; font-size: 1.08rem; }}
-.podium-points {{ margin-top: .35rem; font-size: 1rem; font-weight: 700; }}
+.podium-name {{ font-weight: 900; font-size: 1.08rem; }}
+.podium-points {{ margin-top: .35rem; font-size: 1rem; font-weight: 800; }}
+
+.stTabs [data-baseweb="tab-list"] {{
+  gap: .45rem;
+  border-bottom: 2px solid rgba(0,74,95,.12);
+}}
+.stTabs [data-baseweb="tab"] {{
+  color: {C_PRIMARY_DARK} !important;
+  font-weight: 900 !important;
+  font-size: 1rem !important;
+  background: rgba(255,255,255,.76) !important;
+  border-radius: 12px 12px 0 0 !important;
+  padding: .45rem .95rem !important;
+}}
+.stTabs [data-baseweb="tab"]:hover {{
+  color: {C_PRIMARY_DARK} !important;
+  background: rgba(100,174,188,.12) !important;
+}}
+.stTabs [aria-selected="true"] {{
+  color: {C_PRIMARY_DARK} !important;
+  background: rgba(100,174,188,.18) !important;
+  border-bottom: 3px solid {C_PRIMARY_DARK} !important;
+}}
 
 .rank-row {{
   display: grid;
   grid-template-columns: 78px 1.6fr 130px 120px 110px;
   gap: .75rem;
   align-items: center;
-  background: white;
+  background: #ffffff;
   border: 1px solid rgba(80,80,80,.10);
-  border-left: 6px solid var(--c-primary-light);
+  border-left: 6px solid {C_PRIMARY_LIGHT};
   border-radius: 16px;
   padding: .8rem .95rem;
   margin-bottom: .5rem;
   box-shadow: 0 6px 18px rgba(0,0,0,.04);
 }}
-
-.rank-row.top1 {{ border-left-color: var(--c-secondary-light); background: linear-gradient(90deg, rgba(241,200,49,.16), white 26%); }}
-.rank-row.top2 {{ border-left-color: var(--c-gray); background: linear-gradient(90deg, rgba(217,217,217,.26), white 26%); }}
-.rank-row.top3 {{ border-left-color: var(--c-secondary); background: linear-gradient(90deg, rgba(242,142,0,.13), white 26%); }}
+.rank-row.top1 {{ border-left-color: {C_SECONDARY_LIGHT}; background: linear-gradient(90deg, rgba(241,200,49,.16), white 26%); }}
+.rank-row.top2 {{ border-left-color: {C_GRAY}; background: linear-gradient(90deg, rgba(217,217,217,.28), white 26%); }}
+.rank-row.top3 {{ border-left-color: {C_SECONDARY}; background: linear-gradient(90deg, rgba(242,142,0,.13), white 26%); }}
 
 .pos-badge {{
   width: 54px;
@@ -271,21 +252,19 @@ st.markdown(f"""
   align-items: center;
   justify-content: center;
   color: white;
-  background: var(--c-primary-dark);
+  background: {C_PRIMARY_DARK};
   font-weight: 900;
   font-size: 1.2rem;
   box-shadow: inset 0 0 0 4px rgba(255,255,255,.15);
 }}
+.pos-badge.gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY_LIGHT}); color: #ffffff; }}
+.pos-badge.silver {{ background: linear-gradient(135deg, {C_GRAY}, {C_GRAY_LIGHT}); color: {C_GRAY_DARK}; }}
+.pos-badge.bronze {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY}); color: #ffffff; }}
 
-.pos-badge.gold {{ background: linear-gradient(135deg, #CC6100, #F1C831); color: #383737; }}
-.pos-badge.silver {{ background: linear-gradient(135deg, #706F6F, #D9D9D9); color: #383737; }}
-.pos-badge.bronze {{ background: linear-gradient(135deg, #CC6100, #F28E00); }}
-
-.rank-name {{ font-weight: 800; color: var(--c-gray-dark); font-size: 1.02rem; }}
-.rank-sub {{ color: var(--c-gray); font-size: .83rem; margin-top: .1rem; }}
-.rank-points {{ font-weight: 900; color: var(--c-primary-dark); font-size: 1.4rem; text-align: center; }}
-.rank-label {{ color: var(--c-gray); font-size: .8rem; text-align: center; }}
-
+.rank-name {{ font-weight: 900; color: {C_GRAY_DARK}; font-size: 1.03rem; }}
+.rank-sub {{ color: {C_GRAY_DARK}; font-size: .84rem; opacity: .88; margin-top: .1rem; }}
+.rank-points {{ font-weight: 900; color: {C_PRIMARY_DARK}; font-size: 1.4rem; text-align: center; }}
+.rank-label {{ color: {C_PRIMARY_DARK}; font-size: .82rem; text-align: center; font-weight: 800; }}
 .tag {{
   display: inline-flex;
   align-items: center;
@@ -293,21 +272,18 @@ st.markdown(f"""
   border-radius: 999px;
   padding: .35rem .65rem;
   font-size: .82rem;
-  font-weight: 700;
+  font-weight: 800;
   width: fit-content;
 }}
-.tag-up {{ background: rgba(100,174,188,.16); color: var(--c-primary-dark); }}
-.tag-down {{ background: rgba(242,142,0,.14); color: var(--c-secondary-dark); }}
-.tag-flat {{ background: rgba(112,111,111,.12); color: var(--c-gray-dark); }}
-.tag-new {{ background: rgba(241,200,49,.18); color: var(--c-secondary-dark); }}
-
-.delta-box {{ text-align: center; font-weight: 800; color: var(--c-gray-dark); }}
-
-.tab-hint {{ color: var(--c-gray); font-size: .92rem; margin-top: -.15rem; margin-bottom: .75rem; }}
+.tag-up {{ background: rgba(100,174,188,.2); color: {C_PRIMARY_DARK}; }}
+.tag-down {{ background: rgba(242,142,0,.16); color: {C_SECONDARY_DARK}; }}
+.tag-flat {{ background: rgba(112,111,111,.14); color: {C_GRAY_DARK}; }}
+.tag-new {{ background: rgba(241,200,49,.22); color: {C_SECONDARY_DARK}; }}
+.delta-box {{ text-align: center; font-weight: 900; color: {C_GRAY_DARK}; }}
+.tab-hint, p, li, label {{ color: {C_GRAY_DARK} !important; }}
 
 @media (max-width: 900px) {{
-  .title-grid {{ grid-template-columns: 72px 1fr; }}
-  .title-main {{ font-size: 1.8rem; }}
+  .title-main {{ font-size: 1.85rem; }}
   .rank-row {{ grid-template-columns: 64px 1fr; gap: .55rem; }}
   .rank-points, .rank-label, .delta-box, .tag {{ text-align: left; }}
 }}
@@ -366,10 +342,7 @@ rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
 with rank_tab:
     st.markdown("<div class='section-title'>Clasificación general</div>", unsafe_allow_html=True)
-    st.markdown("<div class='tab-hint'>Vista pública de la clasificación con estilo deportivo.</div>", unsafe_allow_html=True)
-
-    top_chart = ranking.nsmallest(min(10, len(ranking)), 'POS').sort_values(['PUNTOS_TOTALES', 'PARTICIPANTE'], ascending=[False, True]).set_index('PARTICIPANTE')
-    st.bar_chart(top_chart['PUNTOS_TOTALES'])
+    st.markdown("<div class='tab-hint'>Vista pública de la clasificación con estilo deportivo y lectura rápida.</div>", unsafe_allow_html=True)
 
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
@@ -388,17 +361,11 @@ with rank_tab:
         row_class = ''
         medal = ''
         if pos == 1:
-            badge_class = 'gold'
-            row_class = 'top1'
-            medal = ' · Campeón provisional'
+            badge_class = 'gold'; row_class = 'top1'; medal = ' · Campeón provisional'
         elif pos == 2:
-            badge_class = 'silver'
-            row_class = 'top2'
-            medal = ' · 2º puesto'
+            badge_class = 'silver'; row_class = 'top2'; medal = ' · 2º puesto'
         elif pos == 3:
-            badge_class = 'bronze'
-            row_class = 'top3'
-            medal = ' · 3º puesto'
+            badge_class = 'bronze'; row_class = 'top3'; medal = ' · 3º puesto'
 
         delta_points = int(row['CAMBIO_PUNTOS']) if pd.notna(row['CAMBIO_PUNTOS']) else 0
         st.markdown(f"""
@@ -426,5 +393,4 @@ with rank_tab:
 with teams_tab:
     st.markdown("<div class='section-title'>Puntos por equipo</div>", unsafe_allow_html=True)
     st.markdown("<div class='tab-hint'>Selecciones que más están aportando puntos a la porra.</div>", unsafe_allow_html=True)
-    st.bar_chart(team_points.set_index('Equipo')['TOTAL'].head(15))
     st.dataframe(team_points, use_container_width=True, hide_index=True)
