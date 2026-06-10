@@ -4,7 +4,6 @@ import re
 import urllib.request
 import unicodedata
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -13,7 +12,6 @@ st.set_page_config(page_title="Porra Mundial 2026", page_icon="⚽", layout="wid
 
 SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBMvHH0xI/edit?usp=drivesdk&ouid=105950533705571221592&rtpof=true&sd=true"
 CACHE_MINUTES = 5
-LOGO_PATH = "UG 448X448.png"
 
 # Colores corporativos
 C_PRIMARY_DARK = "#004A5F"
@@ -25,6 +23,7 @@ C_SECONDARY_LIGHT = "#F1C831"
 C_GRAY_DARK = "#383737"
 C_GRAY = "#706F6F"
 C_GRAY_LIGHT = "#D9D9D9"
+C_BG = "#F4F8F9"
 
 
 def normalize_text(text: str) -> str:
@@ -121,9 +120,9 @@ def parse_puntos(raw: pd.DataFrame):
 def build_participant_details(resumen_df: pd.DataFrame, team_points: pd.DataFrame):
     pts_by_team = dict(zip(team_points['TEAM_KEY'], team_points['TOTAL']))
     levels = [c for c in resumen_df.columns if str(c).strip().lower().startswith('nivel')]
-
     by_exact = {}
     normalized_names = []
+
     for _, row in resumen_df.iterrows():
         participant = str(row['PARTICIPANTE']).strip()
         pkey = normalize_text(participant)
@@ -170,61 +169,66 @@ def build_participant_details(resumen_df: pd.DataFrame, team_points: pd.DataFram
     return resolve
 
 
-def team_card_html(team: str, level: str, points: int, highlight: bool = False):
+def team_card_html(team: str, points: int, highlight: bool = False, subtitle: str = ""):
     border = C_SECONDARY if highlight else C_PRIMARY_LIGHT
     shadow = '0 10px 22px rgba(0,0,0,.10)' if highlight else '0 6px 18px rgba(0,0,0,.05)'
-    accent = C_SECONDARY if points > 0 else C_GRAY
+    accent = C_SECONDARY if highlight else C_PRIMARY_DARK
+    subtitle_html = f"<div style='color:{C_GRAY};font-size:.82rem;margin-top:.15rem'>{subtitle}</div>" if subtitle else ""
     return f"""
     <div style="background:white;border:1px solid {border};border-left:6px solid {accent};border-radius:16px;padding:.9rem 1rem;box-shadow:{shadow};min-height:120px;">
-      <div style="color:{C_PRIMARY_DARK};font-weight:800;font-size:.88rem;">{level}</div>
-      <div style="color:{C_GRAY_DARK};font-weight:900;font-size:1.12rem;margin-top:.3rem;line-height:1.2;">{team}</div>
+      <div style="color:{C_GRAY_DARK};font-weight:900;font-size:1.08rem;line-height:1.2;">{team}</div>
+      {subtitle_html}
       <div style="color:{accent};font-weight:900;font-size:1.55rem;margin-top:.55rem;">{points}</div>
       <div style="color:{C_GRAY};font-size:.86rem;">puntos acumulados</div>
     </div>
     """
 
 
-st.markdown(f"""
+style = f"""
 <style>
-.stApp {{ background: linear-gradient(180deg, #ffffff 0%, #f4f8f9 40%, #eef5f6 100%); }}
-.block-container {{ max-width: 1180px; padding-top: 1.15rem; padding-bottom: 2rem; }}
+.stApp {{ background: linear-gradient(180deg, #ffffff 0%, {C_BG} 45%, #eef5f6 100%); }}
+.block-container {{ max-width: 1180px; padding-top: 1.1rem; padding-bottom: 2rem; }}
 #MainMenu, footer, header {{ visibility: hidden; }}
-.title-wrap {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 58%, {C_PRIMARY_LIGHT} 100%); border-radius: 24px; padding: 1.2rem 1.35rem; margin-bottom: 1rem; box-shadow: 0 18px 40px rgba(0,74,95,.24); }}
+.title-wrap {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 58%, {C_PRIMARY_LIGHT} 100%); border-radius: 24px; padding: 1.25rem 1.4rem; margin-bottom: 1rem; box-shadow: 0 18px 40px rgba(0,74,95,.24); }}
 .title-main {{ color:#fff; font-size:2.35rem; font-weight:900; line-height:1.05; margin:0; }}
 .title-sub {{ color:rgba(255,255,255,.98); margin-top:.35rem; font-size:1rem; font-weight:600; }}
-.section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.25rem; }}
+.section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.28rem; margin-bottom:.65rem; }}
 .kpi-card {{ background:white; border:1px solid rgba(50,125,142,.18); border-radius:18px; padding:.95rem 1rem .8rem; box-shadow:0 8px 22px rgba(50,125,142,.08); min-height:106px; }}
 .kpi-label {{ color:{C_GRAY_DARK}; font-size:.96rem; font-weight:700; margin-bottom:.25rem; }}
 .kpi-value {{ color:{C_PRIMARY_DARK}; font-size:1.8rem; font-weight:900; line-height:1.05; }}
-.podium-card {{ border-radius:18px; padding:1rem 1rem .9rem; min-height:140px; color:white; box-shadow:0 10px 22px rgba(0,0,0,.10); }}
-.podium-gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK} 0%, {C_SECONDARY} 55%, {C_SECONDARY_LIGHT} 100%); }}
-.podium-silver {{ background: linear-gradient(135deg, {C_GRAY} 0%, #9C9B9B 60%, {C_GRAY_LIGHT} 100%); color:{C_GRAY_DARK}; }}
-.podium-bronze {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); }}
-.podium-rank {{ font-size:1.85rem; margin-bottom:.35rem; }}
-.podium-name {{ font-weight:900; font-size:1.08rem; }}
-.podium-points {{ margin-top:.35rem; font-size:1rem; font-weight:800; }}
+.podium-wrap {{ margin-top:.15rem; margin-bottom:.4rem; }}
+.podium-slot {{ display:flex; align-items:flex-end; justify-content:center; height:220px; }}
+.podium-box {{ width:100%; border-radius:18px 18px 14px 14px; padding:1rem 1rem .9rem; color:white; box-shadow:0 12px 26px rgba(0,0,0,.12); }}
+.podium-1 {{ background: linear-gradient(135deg, {C_SECONDARY_DARK} 0%, {C_SECONDARY} 55%, {C_SECONDARY_LIGHT} 100%); min-height:210px; }}
+.podium-2 {{ background: linear-gradient(135deg, {C_GRAY} 0%, #9C9B9B 60%, {C_GRAY_LIGHT} 100%); color:{C_GRAY_DARK}; min-height:165px; }}
+.podium-3 {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); min-height:145px; }}
+.podium-step-label {{ font-size:2rem; font-weight:900; margin-bottom:.2rem; }}
+.podium-name {{ font-weight:900; font-size:1.08rem; margin-top:.4rem; }}
+.podium-points {{ margin-top:.45rem; font-size:1rem; font-weight:800; }}
 .stTabs [data-baseweb="tab-list"] {{ gap:.45rem; border-bottom:2px solid rgba(0,74,95,.12); }}
 .stTabs [data-baseweb="tab"] {{ color:{C_PRIMARY_DARK} !important; font-weight:900 !important; font-size:1rem !important; background:rgba(255,255,255,.76) !important; border-radius:12px 12px 0 0 !important; padding:.45rem .95rem !important; }}
 .stTabs [aria-selected="true"] {{ color:{C_PRIMARY_DARK} !important; background:rgba(100,174,188,.18) !important; border-bottom:3px solid {C_PRIMARY_DARK} !important; }}
-.rank-row-bg {{ background: rgba(255,255,255,.72); border-radius: 18px; padding: .2rem .55rem; margin-bottom: .35rem; }}
+.rank-row-bg {{ background: rgba(255,255,255,.82); border-radius: 18px; padding: .55rem .75rem; margin-bottom: .45rem; box-shadow: 0 6px 18px rgba(0,0,0,.04); }}
 .pos-badge {{ width:54px; height:54px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; background:{C_PRIMARY_DARK}; font-weight:900; font-size:1.2rem; box-shadow: inset 0 0 0 4px rgba(255,255,255,.15); }}
 .pos-badge.gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY_LIGHT}); }}
 .pos-badge.silver {{ background: linear-gradient(135deg, {C_GRAY}, {C_GRAY_LIGHT}); color:{C_GRAY_DARK}; }}
 .pos-badge.bronze {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY}); }}
-.rank-name {{ font-weight:900; color:{C_GRAY_DARK}; font-size:1.08rem; }}
+.rank-name {{ font-weight:900; color:{C_GRAY_DARK}; font-size:1.1rem; }}
 .rank-points {{ font-weight:900; color:{C_PRIMARY_DARK}; font-size:1.4rem; text-align:center; }}
 .rank-label {{ color:{C_PRIMARY_DARK}; font-size:.82rem; text-align:center; font-weight:800; }}
-.tab-hint, p, li, label {{ color:{C_GRAY_DARK} !important; }}
-button[kind="secondary"] {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 100%) !important; color: white !important; border: none !important; font-weight: 900 !important; border-radius: 12px !important; box-shadow: 0 8px 18px rgba(0,74,95,.18) !important; }}
-button[kind="secondary"]:hover {{ filter: brightness(1.05); }}
-.detail-wrap {{ background:rgba(255,255,255,.93); border:1px solid rgba(50,125,142,.18); border-radius:18px; padding:1rem 1rem .9rem; margin:.35rem 0 1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
+.tab-hint, p, li, label {{ color:{C_GRAY_DARK} !important; font-size:1rem; }}
+.stButton > button {{ background: linear-gradient(135deg, {C_SECONDARY} 0%, {C_SECONDARY_LIGHT} 100%) !important; color: #FFFFFF !important; border: 1px solid {C_SECONDARY_DARK} !important; font-weight: 900 !important; border-radius: 12px !important; box-shadow: 0 10px 22px rgba(204,97,0,.28) !important; padding: .6rem .95rem !important; }}
+.stButton > button:hover {{ filter: brightness(1.03); border-color: {C_SECONDARY_DARK} !important; }}
+.stButton > button p {{ color: #FFFFFF !important; font-weight: 900 !important; }}
+.detail-wrap {{ background:rgba(255,255,255,.95); border:1px solid rgba(50,125,142,.16); border-radius:18px; padding:1rem 1rem .9rem; margin:.2rem 0 1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .detail-header {{ display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; flex-wrap:wrap; }}
 .detail-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.08rem; }}
 .detail-total {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; }}
 .highlight-note {{ background:rgba(241,200,49,.18); border-left:6px solid {C_SECONDARY}; border-radius:14px; padding:.75rem .9rem; color:{C_GRAY_DARK}; font-weight:700; margin:.25rem 0 1rem; }}
-@media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} }}
+@media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ height:auto; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} }}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(style, unsafe_allow_html=True)
 
 try:
     sheets = load_raw_data()
@@ -242,17 +246,12 @@ if 'selected_participant_name' not in st.session_state:
 leader = ranking.sort_values(["POS", "PARTICIPANTE"]).iloc[0]
 last_loaded = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-col_logo, col_title = st.columns([1, 8])
-with col_logo:
-    if Path(LOGO_PATH).exists():
-        st.image(LOGO_PATH, width=96)
-with col_title:
-    st.markdown(f"""
-    <div class='title-wrap'>
-      <div class='title-main'>Clasificación Oficial · Porra Mundial 2026</div>
-      <div class='title-sub'>Actualización automática · Última carga de datos: <b>{last_loaded}</b></div>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"""
+<div class='title-wrap'>
+  <div class='title-main'>Clasificación Oficial · Porra Mundial 2026</div>
+  <div class='title-sub'>Actualización automática · Última carga de datos: <b>{last_loaded}</b></div>
+</div>
+""", unsafe_allow_html=True)
 
 k1, k2, k3, k4 = st.columns(4)
 with k1:
@@ -267,31 +266,51 @@ with k4:
 
 st.markdown("<div class='section-title'>🏅 Podium</div>", unsafe_allow_html=True)
 podium = ranking.nsmallest(3, 'POS')[['PARTICIPANTE', 'PUNTOS_TOTALES']].reset_index(drop=True)
-medal_classes = ['podium-gold', 'podium-silver', 'podium-bronze']
-medals = ['🥇', '🥈', '🥉']
-p1, p2, p3 = st.columns(3)
-for i, col in enumerate([p1, p2, p3]):
-    if i < len(podium):
-        row = podium.iloc[i]
-        col.markdown(f"""
-        <div class='podium-card {medal_classes[i]}'>
-            <div class='podium-rank'>{medals[i]}</div>
+if len(podium) >= 3:
+    c_left, c_center, c_right = st.columns([1, 1.15, 1])
+    with c_left:
+        row = podium.iloc[1]
+        st.markdown(f"""
+        <div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-2'>
+            <div class='podium-step-label'>🥈 2º</div>
             <div class='podium-name'>{row['PARTICIPANTE']}</div>
             <div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div>
-        </div>
+        </div></div></div>
         """, unsafe_allow_html=True)
+    with c_center:
+        row = podium.iloc[0]
+        st.markdown(f"""
+        <div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-1'>
+            <div class='podium-step-label'>🥇 1º</div>
+            <div class='podium-name'>{row['PARTICIPANTE']}</div>
+            <div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div>
+        </div></div></div>
+        """, unsafe_allow_html=True)
+    with c_right:
+        row = podium.iloc[2]
+        st.markdown(f"""
+        <div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-3'>
+            <div class='podium-step-label'>🥉 3º</div>
+            <div class='podium-name'>{row['PARTICIPANTE']}</div>
+            <div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div>
+        </div></div></div>
+        """, unsafe_allow_html=True)
+else:
+    cols = st.columns(len(podium))
+    for i, col in enumerate(cols):
+        row = podium.iloc[i]
+        with col:
+            st.markdown(f"<div class='podium-box podium-1'><div class='podium-name'>{row['PARTICIPANTE']}</div><div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div></div>", unsafe_allow_html=True)
 
 rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
 with rank_tab:
     st.markdown("<div class='section-title'>Clasificación general</div>", unsafe_allow_html=True)
-
     selected_name = st.session_state.get('selected_participant_name')
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
         points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
         participant = str(row['PARTICIPANTE']).strip()
-
         badge_class = ''
         if pos == 1:
             badge_class = 'gold'
@@ -336,25 +355,20 @@ with rank_tab:
                     cols = st.columns(cols_per_row)
                     for col, pick in zip(cols, picks[i:i+cols_per_row]):
                         with col:
-                            st.markdown(team_card_html(pick['Equipo'], pick['Nivel'], int(pick['Puntos acumulados']), highlight=int(pick['Puntos acumulados']) > 0), unsafe_allow_html=True)
+                            st.markdown(team_card_html(pick['Equipo'], int(pick['Puntos acumulados']), highlight=int(pick['Puntos acumulados']) > 0, subtitle=pick['Nivel']), unsafe_allow_html=True)
 
 with teams_tab:
-    st.markdown("<div class='section-title'>Puntos por equipo</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Equipos</div>", unsafe_allow_html=True)
     selected_name = st.session_state.get('selected_participant_name')
     detail = resolve_participant(selected_name) if selected_name else None
-
+    selected_team_keys = set(detail['team_keys']) if detail is not None else set()
     if detail is not None:
-        st.markdown(f"<div class='highlight-note'>Equipos resaltados para <b>{detail['participante']}</b>. Los equipos elegidos por este participante aparecen destacados dentro de la tabla.</div>", unsafe_allow_html=True)
-        selected_team_keys = set(detail['team_keys'])
-        show_df = team_points.drop(columns=['TEAM_KEY']).copy()
-        style_df = show_df.style
-        def highlight_rows(row):
-            team_key = normalize_text(row['Equipo'])
-            if team_key in selected_team_keys:
-                return ['background-color: rgba(241,200,49,.22); border-left: 4px solid ' + C_SECONDARY + '; font-weight: 800'] * len(row)
-            return [''] * len(row)
-        style_df = style_df.apply(highlight_rows, axis=1)
-        st.dataframe(style_df, use_container_width=True, hide_index=True)
-    else:
-        st.markdown("<div class='tab-hint'>Selecciona un participante en Ranking para resaltar sus equipos aquí.</div>", unsafe_allow_html=True)
-        st.dataframe(team_points.drop(columns=['TEAM_KEY']), use_container_width=True, hide_index=True)
+        st.markdown(f"<div class='highlight-note'>Equipos resaltados para <b>{detail['participante']}</b>.</div>", unsafe_allow_html=True)
+
+    cards = team_points.copy()
+    cols_per_row = 4
+    for i in range(0, len(cards), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for col, (_, row) in zip(cols, cards.iloc[i:i+cols_per_row].iterrows()):
+            with col:
+                st.markdown(team_card_html(str(row['Equipo']), int(row['TOTAL']), highlight=row['TEAM_KEY'] in selected_team_keys), unsafe_allow_html=True)
