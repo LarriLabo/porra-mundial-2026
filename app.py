@@ -4,7 +4,6 @@ import re
 import urllib.request
 import unicodedata
 from datetime import datetime
-
 import pandas as pd
 import streamlit as st
 
@@ -13,7 +12,6 @@ st.set_page_config(page_title="Porra Mundial 2026", page_icon="⚽", layout="wid
 SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBMvHH0xI/edit?usp=drivesdk&ouid=105950533705571221592&rtpof=true&sd=true"
 CACHE_MINUTES = 5
 
-# Colores corporativos
 C_PRIMARY_DARK = "#004A5F"
 C_PRIMARY = "#327D8E"
 C_PRIMARY_LIGHT = "#64AEBC"
@@ -36,6 +34,17 @@ LEVEL_COLORS = {
     'Nivel 8': '#9C9B9B',
 }
 
+SCORING_ROWS = [
+    ("Partido Ganado (Liguilla)", 3),
+    ("Partido Empatado (Liguilla)", 1),
+    ("Pasar a 16avos de Final", 5),
+    ("Pasar a Octavos de Final", 5),
+    ("Pasar a Cuartos de Final", 5),
+    ("Pasar a Semifinales", 10),
+    ("Pasar a la Final", 25),
+    ("Ganar la Final", 35),
+]
+
 
 def normalize_text(text: str) -> str:
     if pd.isna(text):
@@ -52,16 +61,6 @@ def make_download_url(url: str) -> str:
     if m:
         sid = m.group(1)
         return f"https://docs.google.com/spreadsheets/d/{sid}/export?format=xlsx"
-    m = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
-    if m:
-        fid = m.group(1)
-        return f"https://drive.google.com/uc?export=download&id={fid}"
-    if "drive.google.com/uc?" in url and "id=" in url:
-        return url
-    m = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
-    if m:
-        fid = m.group(1)
-        return f"https://drive.google.com/uc?export=download&id={fid}"
     return url
 
 
@@ -184,21 +183,17 @@ def calculate_prizes(ranking: pd.DataFrame):
     premios = {}
     first_group = ranking[pd.to_numeric(ranking['POS'], errors='coerce') == 1].copy()
     second_group = ranking[pd.to_numeric(ranking['POS'], errors='coerce') == 2].copy()
-
     if len(first_group) > 1:
         premio_individual = recaudacion / len(first_group)
         for name in first_group['PARTICIPANTE'].astype(str).tolist():
             premios[name] = premio_individual
-        segundo_premio_total = 0.0
     else:
         if len(first_group) == 1:
             premios[str(first_group.iloc[0]['PARTICIPANTE'])] = recaudacion * 0.70
-        segundo_premio_total = recaudacion * 0.30
         if len(second_group) > 0:
-            premio_segundo_individual = segundo_premio_total / len(second_group)
+            premio_segundo_individual = (recaudacion * 0.30) / len(second_group)
             for name in second_group['PARTICIPANTE'].astype(str).tolist():
                 premios[name] = premio_segundo_individual
-
     return recaudacion, premios
 
 
@@ -266,6 +261,15 @@ style = f"""
 .rank-label {{ color:{C_PRIMARY_DARK}; font-size:.82rem; text-align:center; font-weight:800; }}
 .rank-prize {{ color:{C_SECONDARY_DARK}; font-size:.98rem; text-align:center; font-weight:900; }}
 .rank-prize-label {{ color:{C_PRIMARY_DARK}; font-size:.82rem; text-align:center; font-weight:800; }}
+.info-card {{ background:white; border:1px solid rgba(50,125,142,.16); border-radius:18px; padding:1rem 1.05rem; box-shadow:0 8px 18px rgba(0,0,0,.04); height:100%; }}
+.info-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.15rem; margin-bottom:.7rem; }}
+.info-row {{ display:grid; grid-template-columns: 1.3fr 2.4fr; gap:.8rem; padding:.24rem 0; border-bottom:1px solid rgba(112,111,111,.12); }}
+.info-row:last-child {{ border-bottom:none; }}
+.info-key {{ color:{C_GRAY_DARK}; font-weight:800; }}
+.info-val {{ color:{C_GRAY_DARK}; font-weight:600; }}
+.scoring-head {{ display:grid; grid-template-columns: 2.6fr .8fr; gap:.8rem; background:{C_PRIMARY_DARK}; color:#fff; border-radius:10px; padding:.45rem .65rem; font-weight:900; margin-bottom:.35rem; }}
+.scoring-row {{ display:grid; grid-template-columns: 2.6fr .8fr; gap:.8rem; padding:.3rem .1rem; border-bottom:1px solid rgba(112,111,111,.12); color:{C_GRAY_DARK}; }}
+.scoring-row:last-child {{ border-bottom:none; }}
 .stButton > button {{ background: linear-gradient(135deg, {C_SECONDARY} 0%, {C_SECONDARY_LIGHT} 100%) !important; color: #FFFFFF !important; border: 1px solid {C_SECONDARY_DARK} !important; font-weight: 900 !important; border-radius: 12px !important; box-shadow: 0 10px 22px rgba(204,97,0,.28) !important; padding: .6rem .95rem !important; }}
 .stButton > button:hover {{ filter: brightness(1.03); border-color: {C_SECONDARY_DARK} !important; }}
 .stButton > button p {{ color: #FFFFFF !important; font-weight: 900 !important; }}
@@ -274,22 +278,10 @@ style = f"""
 .detail-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.08rem; }}
 .detail-total {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; }}
 .level-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.02rem; margin:.3rem 0 .55rem; }}
-div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button {{
-  width: 34px !important;
-  min-width: 34px !important;
-  height: 34px !important;
-  padding: 0 !important;
-  border-radius: 999px !important;
-  background: rgba(0, 74, 95, .08) !important;
-  border: 1px solid rgba(0, 74, 95, .14) !important;
-  box-shadow: none !important;
-  opacity: .55 !important;
-  color: {C_PRIMARY_DARK} !important;
-  font-size: 1rem !important;
-}}
-div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button p {{ color: {C_PRIMARY_DARK} !important; font-size: 1rem !important; }}
-div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button:hover {{ opacity: .9 !important; background: rgba(0, 74, 95, .12) !important; }}
-@media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ height:auto; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} }}
+div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button {{ width:34px !important; min-width:34px !important; height:34px !important; padding:0 !important; border-radius:999px !important; background:rgba(0,74,95,.08) !important; border:1px solid rgba(0,74,95,.14) !important; box-shadow:none !important; opacity:.55 !important; color:{C_PRIMARY_DARK} !important; font-size:1rem !important; }}
+div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button p {{ color:{C_PRIMARY_DARK} !important; font-size:1rem !important; }}
+div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button:hover {{ opacity:.9 !important; background:rgba(0,74,95,.12) !important; }}
+@media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ height:auto; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} .info-row, .scoring-head, .scoring-row {{ grid-template-columns: 1fr; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
@@ -325,14 +317,8 @@ for pos in [1, 2, 3]:
     else:
         names = group.sort_values(['PARTICIPANTE'])['PARTICIPANTE'].astype(str).tolist()
         points = int(group['PUNTOS_TOTALES'].max())
-        if pos == 1 and len(group) > 0:
-            prize_values = [premios.get(name, 0) for name in names]
-            prize_text = f"Premio: {format_eur(prize_values[0])}" if prize_values and prize_values[0] > 0 else ''
-        elif pos == 2 and len(group) > 0:
-            prize_values = [premios.get(name, 0) for name in names]
-            prize_text = f"Premio: {format_eur(prize_values[0])}" if prize_values and prize_values[0] > 0 else ''
-        else:
-            prize_text = ''
+        prize_values = [premios.get(name, 0) for name in names]
+        prize_text = f"Premio: {format_eur(prize_values[0])}" if pos in [1,2] and prize_values and prize_values[0] > 0 else ''
         podium_groups[pos] = {'names': names, 'points': points, 'prize_text': prize_text}
 
 c1, c2, c3 = st.columns([1.15, 1, 0.9])
@@ -343,7 +329,7 @@ with c2:
 with c3:
     st.markdown(podium_group_html('🥉 3º', podium_groups[3]['names'], podium_groups[3]['points'], '', 'podium-3'), unsafe_allow_html=True)
 
-rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Puntos de selecciones por nivel'])
+rank_tab, teams_tab, info_tab = st.tabs(['🏆 Ranking', '🌍 Puntos de selecciones por nivel', '📘 Información de premios y sistema de puntuación'])
 
 with rank_tab:
     st.markdown(f"<div class='section-title'>Clasificación general ({participant_count} participantes)</div>", unsafe_allow_html=True)
@@ -392,6 +378,35 @@ with teams_tab:
             for col, item in zip(cols, items[i:i+4]):
                 with col:
                     st.markdown(team_card_html(item['Equipo'], int(item['Puntos']), accent), unsafe_allow_html=True)
+
+with info_tab:
+    st.markdown("<div class='section-title'>Información de premios y sistema de puntuación</div>", unsafe_allow_html=True)
+    col_rules, col_scoring = st.columns([1.8, 1])
+    with col_rules:
+        st.markdown("<div class='info-card'><div class='info-title'>REGLAS DE LA PORRA</div>", unsafe_allow_html=True)
+        rules = [
+            ("Precio por apuesta:", "10 €"),
+            ("Límite de apuestas:", "2 por persona"),
+            ("Fecha Límite:", "Jueves 11-06-26 a las 12:00h"),
+            ("Entregar a:", "Alain"),
+        ]
+        for k, v in rules:
+            st.markdown(f"<div class='info-row'><div class='info-key'>{k}</div><div class='info-val'>{v}</div></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:.85rem'></div><div class='info-title'>PREMIOS</div>", unsafe_allow_html=True)
+        prizes = [
+            ("Primer Premio:", "70% de la recaudación"),
+            ("Segundo Premio:", "30% de la recaudación"),
+            ("Nota importante:", "En caso de empate en el 1er puesto, se divide el 100% entre los ganadores y no hay 2º."),
+        ]
+        for k, v in prizes:
+            st.markdown(f"<div class='info-row'><div class='info-key'>{k}</div><div class='info-val'>{v}</div></div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    with col_scoring:
+        st.markdown("<div class='info-card'><div class='info-title'>SISTEMA DE PUNTUACIÓN</div>", unsafe_allow_html=True)
+        st.markdown("<div class='scoring-head'><div>Concepto</div><div>Puntos</div></div>", unsafe_allow_html=True)
+        for concept, pts in SCORING_ROWS:
+            st.markdown(f"<div class='scoring-row'><div>{concept}</div><div><b>{pts}</b></div></div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 left, mid, right = st.columns([10, 1, 10])
 with mid:
