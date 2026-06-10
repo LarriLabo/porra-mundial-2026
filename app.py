@@ -193,9 +193,6 @@ style = f"""
 .title-main {{ color:#fff; font-size:2.35rem; font-weight:900; line-height:1.05; margin:0; }}
 .title-sub {{ color:rgba(255,255,255,.98); margin-top:.35rem; font-size:1rem; font-weight:600; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.28rem; margin-bottom:.65rem; }}
-.kpi-card {{ background:white; border:1px solid rgba(50,125,142,.18); border-radius:18px; padding:.95rem 1rem .8rem; box-shadow:0 8px 22px rgba(50,125,142,.08); min-height:106px; }}
-.kpi-label {{ color:{C_GRAY_DARK}; font-size:.96rem; font-weight:700; margin-bottom:.25rem; }}
-.kpi-value {{ color:{C_PRIMARY_DARK}; font-size:1.8rem; font-weight:900; line-height:1.05; }}
 .podium-wrap {{ margin-top:.15rem; margin-bottom:.4rem; }}
 .podium-slot {{ display:flex; align-items:flex-end; justify-content:center; height:220px; }}
 .podium-box {{ width:100%; border-radius:18px 18px 14px 14px; padding:1rem 1rem .9rem; color:white; box-shadow:0 12px 26px rgba(0,0,0,.12); }}
@@ -243,7 +240,6 @@ except Exception as e:
 if 'selected_participant_name' not in st.session_state:
     st.session_state.selected_participant_name = None
 
-leader = ranking.sort_values(["POS", "PARTICIPANTE"]).iloc[0]
 last_loaded = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
 st.markdown(f"""
@@ -253,31 +249,11 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-k1, k2, k3, k4 = st.columns(4)
-with k1:
-    st.markdown(f"<div class='kpi-card'><div class='kpi-label'>Participantes</div><div class='kpi-value'>{int(ranking['PARTICIPANTE'].nunique())}</div></div>", unsafe_allow_html=True)
-with k2:
-    st.markdown(f"<div class='kpi-card'><div class='kpi-label'>Líder actual</div><div class='kpi-value'>{leader['PARTICIPANTE']}</div></div>", unsafe_allow_html=True)
-with k3:
-    st.markdown(f"<div class='kpi-card'><div class='kpi-label'>Puntos del líder</div><div class='kpi-value'>{int(leader['PUNTOS_TOTALES'])}</div></div>", unsafe_allow_html=True)
-with k4:
-    third_points = int(ranking.nsmallest(min(3, len(ranking)), 'POS').iloc[min(2, len(ranking)-1)]['PUNTOS_TOTALES']) if len(ranking) > 0 else 0
-    st.markdown(f"<div class='kpi-card'><div class='kpi-label'>Puntos del 3º</div><div class='kpi-value'>{third_points}</div></div>", unsafe_allow_html=True)
-
 st.markdown("<div class='section-title'>🏅 Podium</div>", unsafe_allow_html=True)
 podium = ranking.nsmallest(3, 'POS')[['PARTICIPANTE', 'PUNTOS_TOTALES']].reset_index(drop=True)
 if len(podium) >= 3:
-    c_left, c_center, c_right = st.columns([1, 1.15, 1])
-    with c_left:
-        row = podium.iloc[1]
-        st.markdown(f"""
-        <div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-2'>
-            <div class='podium-step-label'>🥈 2º</div>
-            <div class='podium-name'>{row['PARTICIPANTE']}</div>
-            <div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div>
-        </div></div></div>
-        """, unsafe_allow_html=True)
-    with c_center:
+    c1, c2, c3 = st.columns([1.15, 1, 0.9])
+    with c1:
         row = podium.iloc[0]
         st.markdown(f"""
         <div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-1'>
@@ -286,7 +262,16 @@ if len(podium) >= 3:
             <div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div>
         </div></div></div>
         """, unsafe_allow_html=True)
-    with c_right:
+    with c2:
+        row = podium.iloc[1]
+        st.markdown(f"""
+        <div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-2'>
+            <div class='podium-step-label'>🥈 2º</div>
+            <div class='podium-name'>{row['PARTICIPANTE']}</div>
+            <div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div>
+        </div></div></div>
+        """, unsafe_allow_html=True)
+    with c3:
         row = podium.iloc[2]
         st.markdown(f"""
         <div class='podium-wrap'><div class='podium-slot'><div class='podium-box podium-3'>
@@ -295,12 +280,6 @@ if len(podium) >= 3:
             <div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div>
         </div></div></div>
         """, unsafe_allow_html=True)
-else:
-    cols = st.columns(len(podium))
-    for i, col in enumerate(cols):
-        row = podium.iloc[i]
-        with col:
-            st.markdown(f"<div class='podium-box podium-1'><div class='podium-name'>{row['PARTICIPANTE']}</div><div class='podium-points'>{int(row['PUNTOS_TOTALES'])} puntos</div></div>", unsafe_allow_html=True)
 
 rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
@@ -320,16 +299,15 @@ with rank_tab:
             badge_class = 'bronze'
 
         st.markdown("<div class='rank-row-bg'>", unsafe_allow_html=True)
-        c1, c2, c3, c4 = st.columns([0.7, 3.3, 1.2, 1.35])
-        with c1:
+        col1, col2, col3, col4 = st.columns([0.7, 3.3, 1.2, 1.35])
+        with col1:
             st.markdown(f"<div class='pos-badge {badge_class}'>{pos}</div>", unsafe_allow_html=True)
-        with c2:
+        with col2:
             st.markdown(f"<div class='rank-name'>{participant}</div>", unsafe_allow_html=True)
-        with c3:
+        with col3:
             st.markdown(f"<div class='rank-label'>Puntos</div><div class='rank-points'>{points}</div>", unsafe_allow_html=True)
-        with c4:
-            label = 'Ocultar' if selected_name == participant else 'Ver selecciones'
-            if st.button(label, key=f"pick_{normalize_text(participant)}"):
+        with col4:
+            if st.button('Ver selecciones', key=f"pick_{normalize_text(participant)}"):
                 if st.session_state.selected_participant_name == participant:
                     st.session_state.selected_participant_name = None
                 else:
