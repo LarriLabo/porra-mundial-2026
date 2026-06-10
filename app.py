@@ -218,7 +218,7 @@ st.markdown(f"""
 .rank-points {{ font-weight:900; color:{C_PRIMARY_DARK}; font-size:1.4rem; text-align:center; }}
 .rank-label {{ color:{C_PRIMARY_DARK}; font-size:.82rem; text-align:center; font-weight:800; }}
 .tab-hint, p, li, label {{ color:{C_GRAY_DARK} !important; }}
-button[kind="secondary"] {{ background: linear-gradient(135deg, %s 0%%, %s 100%%) !important; color: white !important; border: none !important; font-weight: 900 !important; border-radius: 12px !important; box-shadow: 0 8px 18px rgba(0,74,95,.18) !important; }}
+button[kind="secondary"] {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 100%) !important; color: white !important; border: none !important; font-weight: 900 !important; border-radius: 12px !important; box-shadow: 0 8px 18px rgba(0,74,95,.18) !important; }}
 button[kind="secondary"]:hover {{ filter: brightness(1.05); }}
 .detail-wrap {{ background:rgba(255,255,255,.93); border:1px solid rgba(50,125,142,.18); border-radius:18px; padding:1rem 1rem .9rem; margin:.35rem 0 1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .detail-header {{ display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; flex-wrap:wrap; }}
@@ -227,7 +227,7 @@ button[kind="secondary"]:hover {{ filter: brightness(1.05); }}
 .highlight-note {{ background:rgba(241,200,49,.18); border-left:6px solid {C_SECONDARY}; border-radius:14px; padding:.75rem .9rem; color:{C_GRAY_DARK}; font-weight:700; margin:.25rem 0 1rem; }}
 @media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} }}
 </style>
-""" % (C_PRIMARY_DARK, C_PRIMARY), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 try:
     sheets = load_raw_data()
