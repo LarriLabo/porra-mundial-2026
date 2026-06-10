@@ -225,7 +225,7 @@ style = f"""
 .title-wrap {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 58%, {C_PRIMARY_LIGHT} 100%); border-radius: 24px; padding: 1.25rem 1.4rem; margin-bottom: 1rem; box-shadow: 0 18px 40px rgba(0,74,95,.24); }}
 .title-main {{ color:#fff; font-size:2.35rem; font-weight:900; line-height:1.05; margin:0; }}
 .title-sub {{ color:rgba(255,255,255,.98); margin-top:.35rem; font-size:1rem; font-weight:600; }}
-.section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.28rem; margin-bottom:.65rem; }}
+.section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.28rem; margin-bottom:.4rem; }}
 .podium-wrap {{ margin-top:.15rem; margin-bottom:.4rem; }}
 .podium-slot {{ display:flex; align-items:flex-end; justify-content:center; height:220px; }}
 .podium-box {{ width:100%; border-radius:18px 18px 14px 14px; padding:1rem 1rem .9rem; color:white; box-shadow:0 12px 26px rgba(0,0,0,.12); }}
@@ -239,7 +239,7 @@ style = f"""
 .stTabs [data-baseweb="tab"] {{ color:{C_PRIMARY_DARK} !important; font-weight:900 !important; font-size:1.03rem !important; background:rgba(255,255,255,.76) !important; border-radius:12px 12px 0 0 !important; padding:.55rem 1rem !important; }}
 .stTabs [aria-selected="true"] {{ color:{C_PRIMARY_DARK} !important; background:rgba(100,174,188,.18) !important; border-bottom:3px solid {C_PRIMARY_DARK} !important; }}
 .stTabs [data-baseweb="tab"] p {{ font-weight:900 !important; font-size:1.03rem !important; }}
-.rank-row-bg {{ background: rgba(255,255,255,.82); border-radius: 18px; padding: .55rem .75rem; margin-bottom: .45rem; box-shadow: 0 6px 18px rgba(0,0,0,.04); }}
+.rank-row-bg {{ background: rgba(255,255,255,.18); border-radius: 12px; padding: .14rem .28rem; margin-bottom: .08rem; box-shadow: none; }}
 .rank-row-bg.open {{ animation: fadeInUp .24s ease-out; }}
 @keyframes fadeInUp {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
 .pos-badge {{ width:54px; height:54px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; background:{C_PRIMARY_DARK}; font-weight:900; font-size:1.2rem; box-shadow: inset 0 0 0 4px rgba(255,255,255,.15); }}
@@ -253,7 +253,7 @@ style = f"""
 .stButton > button {{ background: linear-gradient(135deg, {C_SECONDARY} 0%, {C_SECONDARY_LIGHT} 100%) !important; color: #FFFFFF !important; border: 1px solid {C_SECONDARY_DARK} !important; font-weight: 900 !important; border-radius: 12px !important; box-shadow: 0 10px 22px rgba(204,97,0,.28) !important; padding: .6rem .95rem !important; }}
 .stButton > button:hover {{ filter: brightness(1.03); border-color: {C_SECONDARY_DARK} !important; }}
 .stButton > button p {{ color: #FFFFFF !important; font-weight: 900 !important; }}
-.detail-wrap {{ background:rgba(255,255,255,.95); border:1px solid rgba(50,125,142,.16); border-radius:18px; padding:1rem 1rem .9rem; margin:.2rem 0 1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); animation: fadeInUp .24s ease-out; }}
+.detail-wrap {{ background:rgba(255,255,255,.95); border:1px solid rgba(50,125,142,.16); border-radius:18px; padding:.9rem .95rem .85rem; margin:.06rem 0 .55rem; box-shadow:0 8px 18px rgba(0,0,0,.04); animation: fadeInUp .24s ease-out; }}
 .detail-header {{ display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; flex-wrap:wrap; }}
 .detail-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.08rem; }}
 .detail-total {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; }}
