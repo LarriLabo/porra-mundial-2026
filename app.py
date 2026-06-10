@@ -72,7 +72,7 @@ def download_bytes(url: str) -> bytes:
 
 
 @st.cache_data(ttl=CACHE_MINUTES * 60)
-def load_raw_data():
+def load_workbook():
     url = make_download_url(SOURCE_URL)
     file_bytes = download_bytes(url)
     xls = pd.ExcelFile(io.BytesIO(file_bytes), engine="openpyxl")
@@ -101,7 +101,7 @@ def parse_puntos(raw: pd.DataFrame):
     team_start = _find_table_start(
         header_row,
         ['Equipo', 'Fase Grupos', '1/16 (5pts)', '1/8 (5pts)', '1/4 (5pts)', 'Semis (10pts)', 'Final (25pts)', 'Campeón (35pts)', 'TOTAL'],
-        occurrence='first',
+        occurrence='first'
     )
     if curr_start is None:
         raise ValueError("No encuentro las columnas del ranking en la hoja 'Puntos'.")
@@ -135,18 +135,16 @@ def build_participant_details(resumen_df: pd.DataFrame, team_points: pd.DataFram
     for _, row in resumen_df.iterrows():
         participant = str(row['PARTICIPANTE']).strip()
         pkey = normalize_text(participant)
-        picks, total, chosen_keys = [], 0, []
+        picks, total = [], 0
         for lvl in levels:
             team = row[lvl]
             if pd.isna(team):
                 continue
             team = str(team).strip()
-            tkey = normalize_text(team)
-            pts = int(pts_by_team.get(tkey, 0))
+            pts = int(pts_by_team.get(normalize_text(team), 0))
             total += pts
-            chosen_keys.append(tkey)
-            picks.append({'Nivel': str(lvl), 'Equipo': team, 'Puntos': pts, 'TEAM_KEY': tkey})
-        info = {'participante': participant, 'pkey': pkey, 'total_selecciones': total, 'equipos': picks, 'team_keys': chosen_keys}
+            picks.append({'Nivel': str(lvl), 'Equipo': team, 'Puntos': pts})
+        info = {'participante': participant, 'total_selecciones': total, 'equipos': picks}
         by_exact[pkey] = info
         names.append((pkey, info))
 
@@ -166,9 +164,9 @@ def build_participant_details(resumen_df: pd.DataFrame, team_points: pd.DataFram
 
 def build_teams_by_level(resumen_df: pd.DataFrame, team_points: pd.DataFrame):
     pts_by_team = dict(zip(team_points['TEAM_KEY'], team_points['TOTAL']))
-    level_cols = [c for c in resumen_df.columns if str(c).strip().lower().startswith('nivel')]
+    levels = [c for c in resumen_df.columns if str(c).strip().lower().startswith('nivel')]
     result = {}
-    for lvl in level_cols:
+    for lvl in levels:
         items, seen = [], set()
         for team in resumen_df[lvl].dropna().tolist():
             team = str(team).strip()
@@ -185,20 +183,16 @@ def team_card_html(team: str, points: int, accent: str, subtitle: str = ''):
     subtitle_html = f"<div style='color:{C_GRAY};font-size:.82rem;margin-top:.15rem'>{subtitle}</div>" if subtitle else ""
     return f"""
     <div style="background:white;border:1px solid {accent};border-left:6px solid {accent};border-radius:16px;padding:.9rem 1rem;box-shadow:0 6px 18px rgba(0,0,0,.05);min-height:116px;">
-      <div style="color:{C_GRAY_DARK};font-weight:900;font-size:1.08rem;line-height:1.2; text-align:center;">{team}</div>
+      <div style="color:{C_GRAY_DARK};font-weight:900;font-size:1.08rem;line-height:1.2;text-align:center;">{team}</div>
       {subtitle_html}
-      <div style="color:{accent};font-weight:900;font-size:1.55rem;margin-top:.62rem; text-align:center;">{points}</div>
+      <div style="color:{accent};font-weight:900;font-size:1.55rem;margin-top:.62rem;text-align:center;">{points}</div>
     </div>
     """
 
 
 def podium_group_html(place_label: str, names: list[str], points: int, box_class: str) -> str:
-    if not names:
-        names_html = "—"
-        points_html = ""
-    else:
-        names_html = "<br>".join(names)
-        points_html = f"<div class='podium-points'>{points} puntos</div>"
+    names_html = "<br>".join(names) if names else "—"
+    points_html = f"<div class='podium-points'>{points} puntos</div>" if names else ""
     return f"<div class='podium-wrap'><div class='podium-slot'><div class='podium-box {box_class}'><div class='podium-step-label'>{place_label}</div><div class='podium-name podium-name-multi'>{names_html}</div>{points_html}</div></div></div>"
 
 
@@ -243,13 +237,28 @@ style = f"""
 .detail-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.08rem; }}
 .detail-total {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; }}
 .level-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.02rem; margin:.3rem 0 .55rem; }}
+div[data-testid="stVerticalBlock"]:has(.refresh-anchor) [data-testid="stButton"] button {{
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(0, 74, 95, .08) !important;
+  border: 1px solid rgba(0, 74, 95, .14) !important;
+  box-shadow: none !important;
+  opacity: .55 !important;
+  color: {C_PRIMARY_DARK} !important;
+  font-size: 1rem !important;
+}}
+div[data-testid="stVerticalBlock"]:has(.refresh-anchor) [data-testid="stButton"] button p {{ color: {C_PRIMARY_DARK} !important; font-size: 1rem !important; }}
+div[data-testid="stVerticalBlock"]:has(.refresh-anchor) [data-testid="stButton"] button:hover {{ opacity: .9 !important; background: rgba(0, 74, 95, .12) !important; }}
 @media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ height:auto; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
 
 try:
-    sheets = load_raw_data()
+    sheets = load_workbook()
     ranking, team_points = parse_puntos(sheets['Puntos'])
     resolve_participant = build_participant_details(sheets['Resumen de Apuestas'], team_points)
     teams_by_level = build_teams_by_level(sheets['Resumen de Apuestas'], team_points)
@@ -298,7 +307,7 @@ with rank_tab:
         badge_class = 'gold' if pos == 1 else 'silver' if pos == 2 else 'bronze' if pos == 3 else ''
         row_extra = ' open' if st.session_state.get('selected_participant_name') == participant else ''
         st.markdown(f"<div class='rank-row-bg{row_extra}'>", unsafe_allow_html=True)
-        a,b,c,d = st.columns([0.7, 3.3, 1.2, 1.35])
+        a, b, c, d = st.columns([0.7, 3.3, 1.2, 1.35])
         with a:
             st.markdown(f"<div class='pos-badge {badge_class}'>{pos}</div>", unsafe_allow_html=True)
         with b:
@@ -332,3 +341,10 @@ with teams_tab:
             for col, item in zip(cols, items[i:i+4]):
                 with col:
                     st.markdown(team_card_html(item['Equipo'], int(item['Puntos']), accent), unsafe_allow_html=True)
+
+st.markdown("<div class='refresh-anchor'></div>", unsafe_allow_html=True)
+left, mid, right = st.columns([10, 1, 10])
+with mid:
+    if st.button("↻", key="refresh_data", help="Actualizar datos del Excel"):
+        st.cache_data.clear()
+        st.rerun()
