@@ -1,3 +1,4 @@
+
 import io
 import re
 import urllib.request
@@ -8,34 +9,26 @@ import streamlit as st
 
 st.set_page_config(page_title="Porra Mundial 2026", page_icon="⚽", layout="wide")
 
-# Fuente fija para que los visitantes solo vean la web y no tengan que tocar nada.
 SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBMvHH0xI/edit?usp=drivesdk&ouid=105950533705571221592&rtpof=true&sd=true"
 CACHE_MINUTES = 5
 
 
 def make_download_url(url: str) -> str:
     url = url.strip().replace("&amp;", "&")
-
-    # Google Sheets -> exportación a Excel
     m = re.search(r"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9_-]+)", url)
     if m:
         sheet_id = m.group(1)
         return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
-
-    # Google Drive file -> descarga directa
     m = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
     if m:
         file_id = m.group(1)
         return f"https://drive.google.com/uc?export=download&id={file_id}"
-
     if "drive.google.com/uc?" in url and "id=" in url:
         return url
-
     m = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
     if m:
         file_id = m.group(1)
         return f"https://drive.google.com/uc?export=download&id={file_id}"
-
     return url
 
 
@@ -63,11 +56,7 @@ def _find_table_start(row_values, labels, occurrence="first"):
 
 
 def parse_puntos(raw: pd.DataFrame):
-    if raw.shape[0] < 3:
-        raise ValueError("La hoja 'Puntos' no tiene suficientes filas.")
-
     header_row = raw.iloc[1].tolist()
-
     prev_start = _find_table_start(header_row, ["POS", "PARTICIPANTE", "PUNTOS TOTALES"], occurrence="first")
     curr_start = _find_table_start(header_row, ["POS", "PARTICIPANTE", "PUNTOS TOTALES"], occurrence="last")
     team_start = _find_table_start(
@@ -75,7 +64,6 @@ def parse_puntos(raw: pd.DataFrame):
         ["Equipo", "Fase Grupos", "1/16 (5pts)", "1/8 (5pts)", "1/4 (5pts)", "Semis (10pts)", "Final (25pts)", "Campeón (35pts)", "TOTAL"],
         occurrence="first",
     )
-
     if prev_start is None or curr_start is None:
         raise ValueError("No encuentro las columnas del ranking en la hoja 'Puntos'.")
     if team_start is None:
@@ -133,10 +121,9 @@ def load_data():
     if "Puntos" not in sheets:
         raise ValueError(f"El Excel exportado no contiene una hoja llamada 'Puntos'. Hojas detectadas: {list(sheets.keys())}")
     ranking, team_points = parse_puntos(sheets["Puntos"])
-    return ranking, team_points, download_url
+    return ranking, team_points
 
 
-# ===== Diseño visual =====
 st.markdown(
     """
     <style>
@@ -211,7 +198,7 @@ st.markdown(
 )
 
 try:
-    ranking, team_points, resolved_url = load_data()
+    ranking, team_points = load_data()
 except Exception as e:
     st.error(f"No se pudo cargar la clasificación: {e}")
     st.stop()
@@ -258,13 +245,12 @@ for i, col in enumerate([p1, p2, p3]):
             unsafe_allow_html=True,
         )
 
-rank_tab, teams_tab, info_tab = st.tabs(["🏆 Ranking", "🌍 Equipos", "ℹ️ Información"])
+rank_tab, teams_tab = st.tabs(["🏆 Ranking", "🌍 Equipos"])
 
 with rank_tab:
     st.subheader("Clasificación general")
     top_chart = ranking.nsmallest(min(10, len(ranking)), "POS").sort_values(["PUNTOS_TOTALES", "PARTICIPANTE"], ascending=[False, True]).set_index("PARTICIPANTE")
     st.bar_chart(top_chart["PUNTOS_TOTALES"])
-
     table = ranking[["POS", "PARTICIPANTE", "PUNTOS_TOTALES", "MOVIMIENTO", "CAMBIO_PUNTOS"]].copy()
     table.columns = ["Posición", "Participante", "Puntos", "Movimiento", "Δ puntos"]
     st.dataframe(table, use_container_width=True, hide_index=True)
@@ -273,12 +259,3 @@ with teams_tab:
     st.subheader("Puntos por equipo")
     st.bar_chart(team_points.set_index("Equipo")["TOTAL"].head(15))
     st.dataframe(team_points, use_container_width=True, hide_index=True)
-
-with info_tab:
-    st.subheader("Información de la web")
-    st.success("Esta versión es pública y de solo lectura. Quien entre puede consultar la clasificación, pero no modificar los datos ni la fuente.")
-    st.write("- Los datos se leen automáticamente desde una fuente fija compartida.")
-    st.write("- La web refresca la lectura cada 5 minutos de caché aproximadamente.")
-    st.write("- Si acabas de actualizar la hoja, puedes esperar unos minutos o recargar la página del navegador.")
-    with st.expander("Detalles técnicos"):
-        st.code(resolved_url)
