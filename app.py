@@ -244,8 +244,10 @@ style = f"""
 .podium-2 {{ background: linear-gradient(135deg, {C_GRAY} 0%, #9C9B9B 60%, {C_GRAY_LIGHT} 100%); color:{C_GRAY_DARK}; min-height:165px; }}
 .podium-3 {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); min-height:145px; }}
 .podium-step-label {{ font-size:2rem; font-weight:900; margin-bottom:.25rem; text-align:center; }}
-.podium-name {{ font-weight:900; font-size:1.18rem; margin-top:.45rem; line-height:1.2; text-align:center; max-width:100%; overflow-wrap:anywhere; }}
-.podium-name-multi {{ font-size:1.08rem; line-height:1.28; }}
+.podium-name {{ font-weight:900; font-size:1.08rem; margin-top:.45rem; line-height:1.18; text-align:center; max-width:100%; overflow-wrap:anywhere; }}
+.podium-name-multi {{ font-size:1rem; line-height:1.25; }}
+.podium-1 .podium-name {{ font-size:1.24rem; line-height:1.22; }}
+.podium-1 .podium-name-multi {{ font-size:1.12rem; line-height:1.28; }}
 .podium-points {{ margin-top:.5rem; font-size:1rem; font-weight:800; text-align:center; }}
 .podium-prize {{ margin-top:.35rem; font-size:.92rem; font-weight:900; text-align:center; opacity:.98; }}
 .stTabs [data-baseweb="tab-list"] {{ gap:.45rem; border-bottom:2px solid rgba(0,74,95,.12); }}
