@@ -214,20 +214,20 @@ st.markdown(f"""
 .pos-badge.gold {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY_LIGHT}); }}
 .pos-badge.silver {{ background: linear-gradient(135deg, {C_GRAY}, {C_GRAY_LIGHT}); color:{C_GRAY_DARK}; }}
 .pos-badge.bronze {{ background: linear-gradient(135deg, {C_SECONDARY_DARK}, {C_SECONDARY}); }}
-.rank-name {{ font-weight:900; color:{C_GRAY_DARK}; font-size:1.03rem; }}
-.rank-sub {{ color:{C_GRAY_DARK}; font-size:.84rem; opacity:.88; margin-top:.1rem; }}
+.rank-name {{ font-weight:900; color:{C_GRAY_DARK}; font-size:1.08rem; }}
 .rank-points {{ font-weight:900; color:{C_PRIMARY_DARK}; font-size:1.4rem; text-align:center; }}
 .rank-label {{ color:{C_PRIMARY_DARK}; font-size:.82rem; text-align:center; font-weight:800; }}
 .tab-hint, p, li, label {{ color:{C_GRAY_DARK} !important; }}
-.sel-button-wrap button {{ width:100%; border-radius:12px !important; font-weight:800 !important; border:1px solid rgba(50,125,142,.2) !important; }}
-.detail-wrap {{ background:rgba(255,255,255,.86); border:1px solid rgba(50,125,142,.16); border-radius:18px; padding:1rem 1rem .9rem; margin:.35rem 0 1rem; }}
+button[kind="secondary"] {{ background: linear-gradient(135deg, %s 0%%, %s 100%%) !important; color: white !important; border: none !important; font-weight: 900 !important; border-radius: 12px !important; box-shadow: 0 8px 18px rgba(0,74,95,.18) !important; }}
+button[kind="secondary"]:hover {{ filter: brightness(1.05); }}
+.detail-wrap {{ background:rgba(255,255,255,.93); border:1px solid rgba(50,125,142,.18); border-radius:18px; padding:1rem 1rem .9rem; margin:.35rem 0 1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .detail-header {{ display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; flex-wrap:wrap; }}
 .detail-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.08rem; }}
 .detail-total {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; }}
 .highlight-note {{ background:rgba(241,200,49,.18); border-left:6px solid {C_SECONDARY}; border-radius:14px; padding:.75rem .9rem; color:{C_GRAY_DARK}; font-weight:700; margin:.25rem 0 1rem; }}
 @media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} }}
 </style>
-""", unsafe_allow_html=True)
+""" % (C_PRIMARY_DARK, C_PRIMARY), unsafe_allow_html=True)
 
 try:
     sheets = load_raw_data()
@@ -288,8 +288,9 @@ rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
 with rank_tab:
     st.markdown("<div class='section-title'>Clasificación general</div>", unsafe_allow_html=True)
-    st.markdown("<div class='tab-hint'>Pulsa el botón del participante para ver sus selecciones como tarjetas. La selección también se resalta en la pestaña Equipos.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='tab-hint'>Pulsa el botón del participante para ver sus selecciones justo debajo de su fila. La selección también se resalta en la pestaña Equipos.</div>", unsafe_allow_html=True)
 
+    selected_name = st.session_state.get('selected_participant_name')
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
         points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
@@ -297,48 +298,50 @@ with rank_tab:
 
         badge_class = ''
         row_class = ''
-        medal = ''
         if pos == 1:
-            badge_class = 'gold'; row_class = 'top1'; medal = ' · Campeón provisional'
+            badge_class = 'gold'; row_class = 'top1'
         elif pos == 2:
-            badge_class = 'silver'; row_class = 'top2'; medal = ' · 2º puesto'
+            badge_class = 'silver'; row_class = 'top2'
         elif pos == 3:
-            badge_class = 'bronze'; row_class = 'top3'; medal = ' · 3º puesto'
+            badge_class = 'bronze'; row_class = 'top3'
 
         st.markdown(f"<div class='rank-shell {row_class}'>", unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns([0.7, 3.3, 1.2, 1.35])
         with c1:
             st.markdown(f"<div class='pos-badge {badge_class}'>{pos}</div>", unsafe_allow_html=True)
         with c2:
-            st.markdown(f"<div class='rank-name'>{participant}</div><div class='rank-sub'>Posición actual{medal}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='rank-name'>{participant}</div>", unsafe_allow_html=True)
         with c3:
             st.markdown(f"<div class='rank-label'>Puntos</div><div class='rank-points'>{points}</div>", unsafe_allow_html=True)
         with c4:
-            if st.button("Ver selecciones", key=f"pick_{normalize_text(participant)}"):
-                st.session_state.selected_participant_name = participant
+            label = 'Ocultar' if selected_name == participant else 'Ver selecciones'
+            if st.button(label, key=f"pick_{normalize_text(participant)}"):
+                if st.session_state.selected_participant_name == participant:
+                    st.session_state.selected_participant_name = None
+                else:
+                    st.session_state.selected_participant_name = participant
         st.markdown("</div>", unsafe_allow_html=True)
 
-    selected_name = st.session_state.get('selected_participant_name')
-    if selected_name:
-        detail = resolve_participant(selected_name)
-        if detail is None:
-            st.warning(f"No he podido relacionar automáticamente a '{selected_name}' con la hoja 'Resumen de Apuestas'.")
-        else:
-            st.markdown(f"""
-            <div class='detail-wrap'>
-              <div class='detail-header'>
-                <div class='detail-title'>Selecciones de {detail['participante']}</div>
-                <div class='detail-total'>Puntos acumulados de sus equipos: {int(detail['total_selecciones'])}</div>
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-            picks = detail['equipos']
-            cols_per_row = 4
-            for i in range(0, len(picks), cols_per_row):
-                cols = st.columns(cols_per_row)
-                for col, pick in zip(cols, picks[i:i+cols_per_row]):
-                    with col:
-                        st.markdown(team_card_html(pick['Equipo'], pick['Nivel'], int(pick['Puntos acumulados']), highlight=int(pick['Puntos acumulados']) > 0), unsafe_allow_html=True)
+        if st.session_state.get('selected_participant_name') == participant:
+            detail = resolve_participant(participant)
+            if detail is None:
+                st.warning(f"No he podido relacionar automáticamente a '{participant}' con la hoja 'Resumen de Apuestas'.")
+            else:
+                st.markdown(f"""
+                <div class='detail-wrap'>
+                  <div class='detail-header'>
+                    <div class='detail-title'>Selecciones de {detail['participante']}</div>
+                    <div class='detail-total'>Puntos acumulados de sus equipos: {int(detail['total_selecciones'])}</div>
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+                picks = detail['equipos']
+                cols_per_row = 4
+                for i in range(0, len(picks), cols_per_row):
+                    cols = st.columns(cols_per_row)
+                    for col, pick in zip(cols, picks[i:i+cols_per_row]):
+                        with col:
+                            st.markdown(team_card_html(pick['Equipo'], pick['Nivel'], int(pick['Puntos acumulados']), highlight=int(pick['Puntos acumulados']) > 0), unsafe_allow_html=True)
 
 with teams_tab:
     st.markdown("<div class='section-title'>Puntos por equipo</div>", unsafe_allow_html=True)
@@ -357,15 +360,6 @@ with teams_tab:
             return [''] * len(row)
         style_df = style_df.apply(highlight_rows, axis=1)
         st.dataframe(style_df, use_container_width=True, hide_index=True)
-
-        st.markdown("<div class='tab-hint'>Equipos seleccionados por el participante:</div>", unsafe_allow_html=True)
-        cards = detail['equipos']
-        cols_per_row = 4
-        for i in range(0, len(cards), cols_per_row):
-            cols = st.columns(cols_per_row)
-            for col, card in zip(cols, cards[i:i+cols_per_row]):
-                with col:
-                    st.markdown(team_card_html(card['Equipo'], card['Nivel'], int(card['Puntos acumulados']), highlight=True), unsafe_allow_html=True)
     else:
         st.markdown("<div class='tab-hint'>Selecciona un participante en Ranking para resaltar sus equipos aquí.</div>", unsafe_allow_html=True)
         st.dataframe(team_points.drop(columns=['TEAM_KEY']), use_container_width=True, hide_index=True)
