@@ -1,38 +1,36 @@
 import io
 import re
 import urllib.request
-from pathlib import Path
+from datetime import datetime
 
 import pandas as pd
 import streamlit as st
 
 st.set_page_config(page_title="Porra Mundial 2026", page_icon="⚽", layout="wide")
 
-HISTORY_FILE = "historial_puntos.csv"
+# Fuente fija para que los visitantes solo vean la web y no tengan que tocar nada.
+SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBMvHH0xI/edit?usp=drivesdk&ouid=105950533705571221592&rtpof=true&sd=true"
 CACHE_MINUTES = 5
 
 
 def make_download_url(url: str) -> str:
-    """Acepta enlaces de Google Drive FILES y Google Sheets y los convierte a descarga/exportación."""
-    if not url:
-        return url
     url = url.strip().replace("&amp;", "&")
 
-    # Google Sheets -> export xlsx
+    # Google Sheets -> exportación a Excel
     m = re.search(r"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9_-]+)", url)
     if m:
         sheet_id = m.group(1)
         return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
 
-    # Google Drive file -> direct download
+    # Google Drive file -> descarga directa
     m = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
     if m:
         file_id = m.group(1)
         return f"https://drive.google.com/uc?export=download&id={file_id}"
 
-    # 이미 directo o id=
     if "drive.google.com/uc?" in url and "id=" in url:
         return url
+
     m = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
     if m:
         file_id = m.group(1)
@@ -54,8 +52,8 @@ def read_workbook(file_bytes: bytes):
 
 def _find_table_start(row_values, labels, occurrence="first"):
     norm = [str(x).strip().upper() if pd.notna(x) else "" for x in row_values]
-    matches = []
     labels_norm = [x.strip().upper() for x in labels]
+    matches = []
     for i in range(len(norm) - len(labels_norm) + 1):
         if norm[i:i+len(labels_norm)] == labels_norm:
             matches.append(i)
@@ -79,13 +77,9 @@ def parse_puntos(raw: pd.DataFrame):
     )
 
     if prev_start is None or curr_start is None:
-        raise ValueError(
-            f"No encuentro las columnas del ranking en la fila de encabezados. Fila detectada: {header_row}"
-        )
+        raise ValueError("No encuentro las columnas del ranking en la hoja 'Puntos'.")
     if team_start is None:
-        raise ValueError(
-            f"No encuentro la tabla de puntos por equipo en la fila de encabezados. Fila detectada: {header_row}"
-        )
+        raise ValueError("No encuentro la tabla de puntos por equipo en la hoja 'Puntos'.")
 
     ranking_prev = raw.iloc[2:, prev_start:prev_start+3].copy()
     ranking_prev.columns = ["POS_ANTERIOR", "PARTICIPANTE", "PUNTOS_ANTERIORES"]
@@ -110,7 +104,7 @@ def parse_puntos(raw: pd.DataFrame):
     ranking["CAMBIO_POSICION"] = ranking["POS_ANTERIOR"] - ranking["POS"]
     ranking["CAMBIO_PUNTOS"] = ranking["PUNTOS_TOTALES"] - ranking["PUNTOS_ANTERIORES"]
 
-    def mov(v):
+    def movimiento(v):
         if pd.isna(v):
             return "🆕"
         if v > 0:
@@ -119,7 +113,7 @@ def parse_puntos(raw: pd.DataFrame):
             return f"⬇️ {int(v)}"
         return "➡️ 0"
 
-    ranking["MOVIMIENTO"] = ranking["CAMBIO_POSICION"].apply(mov)
+    ranking["MOVIMIENTO"] = ranking["CAMBIO_POSICION"].apply(movimiento)
 
     team_points = raw.iloc[2:, team_start:team_start+9].copy()
     team_points.columns = ["Equipo", "Fase_Grupos", "Dieciseisavos", "Octavos", "Cuartos", "Semis", "Final", "Campeon", "TOTAL"]
@@ -132,148 +126,159 @@ def parse_puntos(raw: pd.DataFrame):
     return ranking, team_points
 
 
-@st.cache_data
-def load_history():
-    path = Path(HISTORY_FILE)
-    if not path.exists():
-        return pd.DataFrame(columns=["fecha", "participante", "puntos_totales"])
-    hist = pd.read_csv(path)
-    if set(["fecha", "participante", "puntos_totales"]).issubset(hist.columns):
-        hist["fecha"] = pd.to_datetime(hist["fecha"], errors="coerce")
-        hist["puntos_totales"] = pd.to_numeric(hist["puntos_totales"], errors="coerce")
-        hist["participante"] = hist["participante"].astype(str)
-        return hist.dropna(subset=["fecha", "participante", "puntos_totales"])
-    return pd.DataFrame(columns=["fecha", "participante", "puntos_totales"])
-
-
-def add_snapshot(ranking: pd.DataFrame):
-    path = Path(HISTORY_FILE)
-    now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-    snap = ranking[["PARTICIPANTE", "PUNTOS_TOTALES"]].copy()
-    snap.columns = ["participante", "puntos_totales"]
-    snap.insert(0, "fecha", now)
-    if path.exists():
-        hist = pd.read_csv(path)
-        hist = pd.concat([hist, snap], ignore_index=True)
-    else:
-        hist = snap
-    hist.to_csv(path, index=False)
-    load_history.clear()
-
-
-st.title("⚽ Porra Mundial 2026")
-st.caption("App compatible con enlaces de Google Drive y Google Sheets, además de subida manual.")
-
-with st.sidebar:
-    st.header("Fuente de datos")
-    source = st.radio("¿Desde dónde cargar los datos?", ["Enlace de Google Drive / Google Sheets", "Subida manual"], index=0)
-    drive_link = ""
-    uploaded = None
-    if source == "Enlace de Google Drive / Google Sheets":
-        drive_link = st.text_input(
-            "Pega el enlace compartido",
-            placeholder="https://drive.google.com/file/d/... o https://docs.google.com/spreadsheets/d/...",
-        )
-        st.caption("La app acepta tanto un archivo de Drive como una hoja de Google Sheets. La caché es de 5 minutos.")
-    else:
-        uploaded = st.file_uploader("Sube el Excel actualizado", type=["xlsx"])
-
-    if st.button("🔄 Refrescar datos ahora"):
-        download_bytes.clear()
-        read_workbook.clear()
-        st.rerun()
-
-if source == "Enlace de Google Drive / Google Sheets":
-    if not drive_link:
-        st.info("Pega el enlace compartido para continuar.")
-        st.stop()
-    download_url = make_download_url(drive_link)
-    st.caption(f"URL de descarga/exportación generada: {download_url}")
-    try:
-        file_bytes = download_bytes(download_url)
-    except Exception as e:
-        st.error(f"No se pudo descargar/exportar el fichero: {e}")
-        st.stop()
-else:
-    if uploaded is None:
-        st.info("Sube el Excel para continuar.")
-        st.stop()
-    file_bytes = uploaded.read()
-
-try:
+def load_data():
+    download_url = make_download_url(SOURCE_URL)
+    file_bytes = download_bytes(download_url)
     sheets = read_workbook(file_bytes)
-except Exception as e:
-    st.error(f"No se pudo abrir el Excel: {e}")
-    st.stop()
+    if "Puntos" not in sheets:
+        raise ValueError(f"El Excel exportado no contiene una hoja llamada 'Puntos'. Hojas detectadas: {list(sheets.keys())}")
+    ranking, team_points = parse_puntos(sheets["Puntos"])
+    return ranking, team_points, download_url
 
-if "Puntos" not in sheets:
-    st.error(f"El Excel no contiene una hoja llamada 'Puntos'. Hojas detectadas: {list(sheets.keys())}")
-    st.stop()
+
+# ===== Diseño visual =====
+st.markdown(
+    """
+    <style>
+    .block-container {
+        padding-top: 1.4rem;
+        padding-bottom: 2rem;
+        max-width: 1180px;
+    }
+    .title-wrap {
+        background: linear-gradient(135deg, #0f172a, #111827 60%, #0b1220);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        padding: 1.35rem 1.4rem 1.1rem 1.4rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,.18);
+    }
+    .title-main {
+        font-size: 2.3rem;
+        font-weight: 800;
+        margin: 0;
+        line-height: 1.1;
+    }
+    .title-sub {
+        margin-top: .35rem;
+        color: #cbd5e1;
+        font-size: 1rem;
+    }
+    .kpi-card {
+        border: 1px solid rgba(255,255,255,.08);
+        background: rgba(255,255,255,.03);
+        border-radius: 16px;
+        padding: 1rem 1rem .7rem 1rem;
+        min-height: 105px;
+    }
+    .small-label {
+        color: #94a3b8;
+        font-size: .9rem;
+        margin-bottom: .2rem;
+    }
+    .big-number {
+        font-size: 1.8rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+    .podium-card {
+        border-radius: 18px;
+        padding: 1rem 1rem .85rem 1rem;
+        border: 1px solid rgba(255,255,255,.08);
+        background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+        min-height: 135px;
+    }
+    .podium-rank {
+        font-size: 1.8rem;
+        margin-bottom: .4rem;
+    }
+    .podium-name {
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+    .podium-points {
+        color: #93c5fd;
+        font-weight: 700;
+        margin-top: .35rem;
+        font-size: 1rem;
+    }
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 try:
-    ranking, team_points = parse_puntos(sheets["Puntos"])
+    ranking, team_points, resolved_url = load_data()
 except Exception as e:
-    st.error(f"No se pudo interpretar la hoja 'Puntos': {e}")
+    st.error(f"No se pudo cargar la clasificación: {e}")
     st.stop()
 
-st.success(f"Datos cargados correctamente ({pd.Timestamp.now().strftime('%d/%m/%Y %H:%M:%S')}).")
-
-col1, col2, col3, col4 = st.columns(4)
 leader = ranking.sort_values(["POS", "PARTICIPANTE"]).iloc[0]
-col1.metric("Participantes", int(ranking["PARTICIPANTE"].nunique()))
-col2.metric("Líder", leader["PARTICIPANTE"])
-col3.metric("Puntos del líder", int(leader["PUNTOS_TOTALES"]))
-col4.metric("Máx. subida de puntos", int(ranking["CAMBIO_PUNTOS"].fillna(0).max()))
+last_loaded = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-t1, t2, t3 = st.tabs(["🏆 Ranking", "📈 Evolución", "🌍 Equipos"])
+st.markdown(
+    f"""
+    <div class="title-wrap">
+        <div class="title-main">⚽ Porra Mundial 2026</div>
+        <div class="title-sub">Clasificación pública de la porra · Solo lectura · Última carga de datos: <b>{last_loaded}</b></div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-with t1:
-    st.subheader("Clasificación actual")
-    podium = ranking.nsmallest(3, "POS")[["PARTICIPANTE", "PUNTOS_TOTALES"]].reset_index(drop=True)
-    cols = st.columns(3)
-    medals = ["🥇", "🥈", "🥉"]
-    for i, col in enumerate(cols):
-        if i < len(podium):
-            row = podium.iloc[i]
-            col.metric(f"{medals[i]} {row['PARTICIPANTE']}", int(row['PUNTOS_TOTALES']))
+k1, k2, k3, k4 = st.columns(4)
+with k1:
+    st.markdown(f'<div class="kpi-card"><div class="small-label">Participantes</div><div class="big-number">{int(ranking["PARTICIPANTE"].nunique())}</div></div>', unsafe_allow_html=True)
+with k2:
+    st.markdown(f'<div class="kpi-card"><div class="small-label">Líder actual</div><div class="big-number">{leader["PARTICIPANTE"]}</div></div>', unsafe_allow_html=True)
+with k3:
+    st.markdown(f'<div class="kpi-card"><div class="small-label">Puntos del líder</div><div class="big-number">{int(leader["PUNTOS_TOTALES"])}</div></div>', unsafe_allow_html=True)
+with k4:
+    max_delta = int(ranking["CAMBIO_PUNTOS"].fillna(0).max())
+    st.markdown(f'<div class="kpi-card"><div class="small-label">Mayor subida</div><div class="big-number">+{max_delta}</div></div>', unsafe_allow_html=True)
 
-    term = st.text_input("Buscar participante")
-    view = ranking.copy()
-    if term:
-        view = view[view["PARTICIPANTE"].str.contains(term, case=False, na=False)]
-
-    top_n = st.slider("Top N para gráfico", 5, min(30, len(ranking)), min(10, len(ranking)))
-    chart = ranking.nsmallest(top_n, "POS").sort_values(["PUNTOS_TOTALES", "PARTICIPANTE"], ascending=[False, True]).set_index("PARTICIPANTE")
-    st.bar_chart(chart["PUNTOS_TOTALES"])
-
-    show = view[["POS", "PARTICIPANTE", "PUNTOS_TOTALES", "MOVIMIENTO", "CAMBIO_PUNTOS"]].copy()
-    show.columns = ["Posición", "Participante", "Puntos", "Movimiento", "Δ puntos"]
-    st.dataframe(show, use_container_width=True, hide_index=True)
-
-with t2:
-    st.subheader("Evolución de puntos")
-    st.write("Guarda snapshots para construir el histórico.")
-    if st.button("Guardar snapshot actual"):
-        add_snapshot(ranking)
-        st.success("Snapshot guardado.")
-    hist = load_history()
-    if hist.empty:
-        st.warning("Todavía no hay historial guardado.")
-    else:
-        selected = st.multiselect(
-            "Selecciona participantes",
-            sorted(hist["participante"].unique().tolist()),
-            default=sorted(hist["participante"].unique().tolist())[:5],
+st.markdown("### 🏅 Podium")
+podium = ranking.nsmallest(3, "POS")[["PARTICIPANTE", "PUNTOS_TOTALES"]].reset_index(drop=True)
+p1, p2, p3 = st.columns(3)
+medals = ["🥇", "🥈", "🥉"]
+for i, col in enumerate([p1, p2, p3]):
+    if i < len(podium):
+        row = podium.iloc[i]
+        col.markdown(
+            f"""
+            <div class="podium-card">
+                <div class="podium-rank">{medals[i]}</div>
+                <div class="podium-name">{row['PARTICIPANTE']}</div>
+                <div class="podium-points">{int(row['PUNTOS_TOTALES'])} puntos</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        hv = hist.copy()
-        if selected:
-            hv = hv[hv["participante"].isin(selected)]
-        if not hv.empty:
-            pivot = hv.pivot_table(index="fecha", columns="participante", values="puntos_totales", aggfunc="last").sort_index()
-            st.line_chart(pivot)
-            st.dataframe(hv.sort_values(["fecha", "participante"]), use_container_width=True, hide_index=True)
 
-with t3:
-    st.subheader("Tabla de puntos por equipo")
+rank_tab, teams_tab, info_tab = st.tabs(["🏆 Ranking", "🌍 Equipos", "ℹ️ Información"])
+
+with rank_tab:
+    st.subheader("Clasificación general")
+    top_chart = ranking.nsmallest(min(10, len(ranking)), "POS").sort_values(["PUNTOS_TOTALES", "PARTICIPANTE"], ascending=[False, True]).set_index("PARTICIPANTE")
+    st.bar_chart(top_chart["PUNTOS_TOTALES"])
+
+    table = ranking[["POS", "PARTICIPANTE", "PUNTOS_TOTALES", "MOVIMIENTO", "CAMBIO_PUNTOS"]].copy()
+    table.columns = ["Posición", "Participante", "Puntos", "Movimiento", "Δ puntos"]
+    st.dataframe(table, use_container_width=True, hide_index=True)
+
+with teams_tab:
+    st.subheader("Puntos por equipo")
     st.bar_chart(team_points.set_index("Equipo")["TOTAL"].head(15))
     st.dataframe(team_points, use_container_width=True, hide_index=True)
+
+with info_tab:
+    st.subheader("Información de la web")
+    st.success("Esta versión es pública y de solo lectura. Quien entre puede consultar la clasificación, pero no modificar los datos ni la fuente.")
+    st.write("- Los datos se leen automáticamente desde una fuente fija compartida.")
+    st.write("- La web refresca la lectura cada 5 minutos de caché aproximadamente.")
+    st.write("- Si acabas de actualizar la hoja, puedes esperar unos minutos o recargar la página del navegador.")
+    with st.expander("Detalles técnicos"):
+        st.code(resolved_url)
