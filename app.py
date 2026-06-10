@@ -305,6 +305,7 @@ except Exception as e:
 if 'selected_participant_name' not in st.session_state:
     st.session_state.selected_participant_name = None
 
+participant_count = int(ranking['PARTICIPANTE'].nunique())
 last_loaded = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 st.markdown(f"""
 <div class='title-wrap'>
@@ -343,7 +344,7 @@ with c3:
 rank_tab, teams_tab = st.tabs(['🏆 Ranking', '🌍 Equipos'])
 
 with rank_tab:
-    st.markdown("<div class='section-title'>Clasificación general</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='section-title'>Clasificación general ({participant_count} participantes)</div>", unsafe_allow_html=True)
     for _, row in ranking.iterrows():
         pos = int(row['POS']) if pd.notna(row['POS']) else '-'
         points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
