@@ -218,9 +218,18 @@ def team_card_html(team: str, points: int, accent: str, subtitle: str = ''):
 
 def podium_group_html(place_label: str, names: list[str], points: int, prize_text: str, box_class: str) -> str:
     names_html = "<br>".join(names) if names else "—"
+    count = len(names)
+    names_classes = "podium-name podium-name-multi"
+    box_classes = f"podium-box {box_class}"
+    if count > 6:
+        names_classes += " podium-name-scroll"
+        box_classes += " podium-scroll-box"
+    if count > 12:
+        names_classes += " podium-name-tiny"
+        box_classes += " podium-scroll-box podium-scroll-box-tight"
     points_html = f"<div class='podium-points'>{points} puntos</div>" if names else ""
     prize_html = f"<div class='podium-prize'>{prize_text}</div>" if prize_text else ""
-    return f"<div class='podium-wrap'><div class='podium-slot'><div class='podium-box {box_class}'><div class='podium-step-label'>{place_label}</div><div class='podium-name podium-name-multi'>{names_html}</div>{points_html}{prize_html}</div></div></div>"
+    return f"<div class='podium-wrap'><div class='podium-slot'><div class='{box_classes}'><div class='podium-step-label'>{place_label}</div><div class='{names_classes}'>{names_html}</div>{points_html}{prize_html}</div></div></div>"
 
 
 style = f"""
@@ -233,16 +242,24 @@ style = f"""
 .title-sub {{ color:rgba(255,255,255,.98); margin-top:.35rem; font-size:1rem; font-weight:600; text-align:center; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.28rem; margin-bottom:.4rem; }}
 .podium-wrap {{ margin-top:.15rem; margin-bottom:.4rem; }}
-.podium-slot {{ display:flex; align-items:flex-end; justify-content:center; height:220px; }}
+.podium-slot {{ display:flex; align-items:flex-end; justify-content:center; min-height:220px; }}
 .podium-box {{ width:100%; border-radius:18px 18px 14px 14px; padding:1rem 1rem .95rem; color:white; box-shadow:0 12px 26px rgba(0,0,0,.12); display:flex; flex-direction:column; justify-content:center; text-align:center; }}
+.podium-scroll-box {{ padding:.85rem .82rem .8rem; }}
+.podium-scroll-box-tight {{ padding:.75rem .72rem .72rem; }}
 .podium-1 {{ background: linear-gradient(135deg, {C_SECONDARY_DARK} 0%, {C_SECONDARY} 55%, {C_SECONDARY_LIGHT} 100%); min-height:210px; }}
 .podium-2 {{ background: linear-gradient(135deg, {C_GRAY} 0%, #9C9B9B 60%, {C_GRAY_LIGHT} 100%); color:{C_GRAY_DARK}; min-height:165px; }}
 .podium-3 {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); min-height:145px; }}
 .podium-step-label {{ font-size:2rem; font-weight:900; margin-bottom:.25rem; text-align:center; }}
-.podium-name {{ font-weight:900; font-size:1.28rem; margin-top:.5rem; line-height:1.22; text-align:center; max-width:100%; overflow-wrap:anywhere; text-shadow:0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.10); }}
-.podium-name-multi {{ font-size:1.14rem; line-height:1.3; }}
-.podium-1 .podium-name {{ font-size:1.42rem; line-height:1.24; text-shadow:0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.14); }}
-.podium-1 .podium-name-multi {{ font-size:1.22rem; line-height:1.32; }}
+.podium-name {{ font-weight:900; font-size:1.18rem; margin-top:.45rem; line-height:1.2; text-align:center; max-width:100%; overflow-wrap:anywhere; text-shadow:0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.10); }}
+.podium-name-multi {{ font-size:1.06rem; line-height:1.26; }}
+.podium-1 .podium-name {{ font-size:1.3rem; line-height:1.22; text-shadow:0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.14); }}
+.podium-1 .podium-name-multi {{ font-size:1.12rem; line-height:1.28; }}
+.podium-name-scroll {{ display:block; max-height:168px; overflow-y:auto; padding-right:.1rem; }}
+.podium-name-tiny {{ font-size:.92rem !important; line-height:1.18 !important; }}
+.podium-1 .podium-name-tiny {{ font-size:1rem !important; line-height:1.2 !important; }}
+.podium-name-scroll::-webkit-scrollbar {{ width:6px; }}
+.podium-name-scroll::-webkit-scrollbar-thumb {{ background:rgba(255,255,255,.34); border-radius:999px; }}
+.podium-name-scroll::-webkit-scrollbar-track {{ background:rgba(255,255,255,.10); border-radius:999px; }}
 .podium-points {{ margin-top:.5rem; font-size:1rem; font-weight:800; text-align:center; }}
 .podium-prize {{ margin-top:.35rem; font-size:.92rem; font-weight:900; text-align:center; opacity:.98; }}
 .stTabs [data-baseweb="tab-list"] {{ gap:.45rem; border-bottom:2px solid rgba(0,74,95,.12); }}
@@ -281,7 +298,7 @@ style = f"""
 div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button {{ width:34px !important; min-width:34px !important; height:34px !important; padding:0 !important; border-radius:999px !important; background:rgba(0,74,95,.08) !important; border:1px solid rgba(0,74,95,.14) !important; box-shadow:none !important; opacity:.55 !important; color:{C_PRIMARY_DARK} !important; font-size:1rem !important; }}
 div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button p {{ color:{C_PRIMARY_DARK} !important; font-size:1rem !important; }}
 div[data-testid="column"]:has(.refresh-anchor) [data-testid="stButton"] button:hover {{ opacity:.9 !important; background:rgba(0,74,95,.12) !important; }}
-@media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ height:auto; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} .info-row, .scoring-head, .scoring-row {{ grid-template-columns: 1fr; }} }}
+@media (max-width: 900px) {{ .title-main {{ font-size:1.85rem; }} .podium-slot {{ min-height:0; }} .podium-1, .podium-2, .podium-3 {{ min-height:unset; }} .info-row, .scoring-head, .scoring-row {{ grid-template-columns: 1fr; }} .podium-name-scroll {{ max-height:120px; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
