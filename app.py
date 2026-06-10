@@ -9,47 +9,92 @@ import streamlit as st
 st.set_page_config(page_title="Porra Mundial 2026", page_icon="⚽", layout="wide")
 
 HISTORY_FILE = "historial_puntos.csv"
-DEFAULT_CACHE_MINUTES = 5
+CACHE_MINUTES = 5
 
 
-def drive_to_direct_download(url: str) -> str:
+def make_download_url(url: str) -> str:
+    """Acepta enlaces de Google Drive FILES y Google Sheets y los convierte a descarga/exportación."""
     if not url:
         return url
-    url = url.strip()
+    url = url.strip().replace("&amp;", "&")
+
+    # Google Sheets -> export xlsx
+    m = re.search(r"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9_-]+)", url)
+    if m:
+        sheet_id = m.group(1)
+        return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+
+    # Google Drive file -> direct download
+    m = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
+    if m:
+        file_id = m.group(1)
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+    # 이미 directo o id=
     if "drive.google.com/uc?" in url and "id=" in url:
         return url
-    patterns = [r"/file/d/([a-zA-Z0-9_-]+)", r"[?&]id=([a-zA-Z0-9_-]+)"]
-    file_id = None
-    for pattern in patterns:
-        m = re.search(pattern, url)
-        if m:
-            file_id = m.group(1)
-            break
-    if not file_id:
-        return url
-    return f"https://drive.google.com/uc?export=download&id={file_id}"
+    m = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
+    if m:
+        file_id = m.group(1)
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+    return url
 
 
-@st.cache_data(ttl=DEFAULT_CACHE_MINUTES * 60)
-def download_file(url: str) -> bytes:
-    with urllib.request.urlopen(url, timeout=30) as response:
+@st.cache_data(ttl=CACHE_MINUTES * 60)
+def download_bytes(url: str) -> bytes:
+    with urllib.request.urlopen(url, timeout=45) as response:
         return response.read()
 
 
-@st.cache_data(ttl=DEFAULT_CACHE_MINUTES * 60)
-def load_workbook(file_bytes: bytes):
+@st.cache_data(ttl=CACHE_MINUTES * 60)
+def read_workbook(file_bytes: bytes):
     return pd.read_excel(io.BytesIO(file_bytes), sheet_name=None, header=None, engine="openpyxl")
 
 
+def _find_table_start(row_values, labels, occurrence="first"):
+    norm = [str(x).strip().upper() if pd.notna(x) else "" for x in row_values]
+    matches = []
+    labels_norm = [x.strip().upper() for x in labels]
+    for i in range(len(norm) - len(labels_norm) + 1):
+        if norm[i:i+len(labels_norm)] == labels_norm:
+            matches.append(i)
+    if not matches:
+        return None
+    return matches[-1] if occurrence == "last" else matches[0]
+
+
 def parse_puntos(raw: pd.DataFrame):
-    ranking_prev = raw.iloc[2:, 0:3].copy()
+    if raw.shape[0] < 3:
+        raise ValueError("La hoja 'Puntos' no tiene suficientes filas.")
+
+    header_row = raw.iloc[1].tolist()
+
+    prev_start = _find_table_start(header_row, ["POS", "PARTICIPANTE", "PUNTOS TOTALES"], occurrence="first")
+    curr_start = _find_table_start(header_row, ["POS", "PARTICIPANTE", "PUNTOS TOTALES"], occurrence="last")
+    team_start = _find_table_start(
+        header_row,
+        ["Equipo", "Fase Grupos", "1/16 (5pts)", "1/8 (5pts)", "1/4 (5pts)", "Semis (10pts)", "Final (25pts)", "Campeón (35pts)", "TOTAL"],
+        occurrence="first",
+    )
+
+    if prev_start is None or curr_start is None:
+        raise ValueError(
+            f"No encuentro las columnas del ranking en la fila de encabezados. Fila detectada: {header_row}"
+        )
+    if team_start is None:
+        raise ValueError(
+            f"No encuentro la tabla de puntos por equipo en la fila de encabezados. Fila detectada: {header_row}"
+        )
+
+    ranking_prev = raw.iloc[2:, prev_start:prev_start+3].copy()
     ranking_prev.columns = ["POS_ANTERIOR", "PARTICIPANTE", "PUNTOS_ANTERIORES"]
     ranking_prev = ranking_prev.dropna(subset=["PARTICIPANTE"]).copy()
     ranking_prev["PARTICIPANTE"] = ranking_prev["PARTICIPANTE"].astype(str).str.strip()
     ranking_prev["POS_ANTERIOR"] = pd.to_numeric(ranking_prev["POS_ANTERIOR"], errors="coerce")
     ranking_prev["PUNTOS_ANTERIORES"] = pd.to_numeric(ranking_prev["PUNTOS_ANTERIORES"], errors="coerce")
 
-    ranking = raw.iloc[2:, 16:19].copy()
+    ranking = raw.iloc[2:, curr_start:curr_start+3].copy()
     ranking.columns = ["POS", "PARTICIPANTE", "PUNTOS_TOTALES"]
     ranking = ranking.dropna(subset=["PARTICIPANTE"]).copy()
     ranking["PARTICIPANTE"] = ranking["PARTICIPANTE"].astype(str).str.strip()
@@ -76,7 +121,7 @@ def parse_puntos(raw: pd.DataFrame):
 
     ranking["MOVIMIENTO"] = ranking["CAMBIO_POSICION"].apply(mov)
 
-    team_points = raw.iloc[2:, 5:14].copy()
+    team_points = raw.iloc[2:, team_start:team_start+9].copy()
     team_points.columns = ["Equipo", "Fase_Grupos", "Dieciseisavos", "Octavos", "Cuartos", "Semis", "Final", "Campeon", "TOTAL"]
     team_points = team_points.dropna(subset=["Equipo"]).copy()
     team_points["Equipo"] = team_points["Equipo"].astype(str).str.strip()
@@ -117,36 +162,37 @@ def add_snapshot(ranking: pd.DataFrame):
 
 
 st.title("⚽ Porra Mundial 2026")
-st.caption("Web en Streamlit leyendo un Excel .xlsx desde Google Drive.")
+st.caption("App compatible con enlaces de Google Drive y Google Sheets, además de subida manual.")
 
 with st.sidebar:
     st.header("Fuente de datos")
-    source = st.radio("¿Desde dónde cargar el Excel?", ["Google Drive", "Subida manual"], index=0)
-    uploaded = None
+    source = st.radio("¿Desde dónde cargar los datos?", ["Enlace de Google Drive / Google Sheets", "Subida manual"], index=0)
     drive_link = ""
-    if source == "Google Drive":
+    uploaded = None
+    if source == "Enlace de Google Drive / Google Sheets":
         drive_link = st.text_input(
-            "Pega el enlace compartido de Google Drive",
-            placeholder="https://drive.google.com/file/d/FILE_ID/view?usp=sharing",
+            "Pega el enlace compartido",
+            placeholder="https://drive.google.com/file/d/... o https://docs.google.com/spreadsheets/d/...",
         )
-        st.caption("La caché es de 5 minutos. También puedes pulsar refrescar.")
+        st.caption("La app acepta tanto un archivo de Drive como una hoja de Google Sheets. La caché es de 5 minutos.")
     else:
         uploaded = st.file_uploader("Sube el Excel actualizado", type=["xlsx"])
 
     if st.button("🔄 Refrescar datos ahora"):
-        download_file.clear()
-        load_workbook.clear()
+        download_bytes.clear()
+        read_workbook.clear()
         st.rerun()
 
-if source == "Google Drive":
+if source == "Enlace de Google Drive / Google Sheets":
     if not drive_link:
-        st.info("Pega el enlace compartido de Google Drive para continuar.")
+        st.info("Pega el enlace compartido para continuar.")
         st.stop()
-    direct_url = drive_to_direct_download(drive_link)
+    download_url = make_download_url(drive_link)
+    st.caption(f"URL de descarga/exportación generada: {download_url}")
     try:
-        file_bytes = download_file(direct_url)
+        file_bytes = download_bytes(download_url)
     except Exception as e:
-        st.error(f"No se pudo descargar el Excel desde Google Drive: {e}")
+        st.error(f"No se pudo descargar/exportar el fichero: {e}")
         st.stop()
 else:
     if uploaded is None:
@@ -155,16 +201,20 @@ else:
     file_bytes = uploaded.read()
 
 try:
-    sheets = load_workbook(file_bytes)
+    sheets = read_workbook(file_bytes)
 except Exception as e:
     st.error(f"No se pudo abrir el Excel: {e}")
     st.stop()
 
 if "Puntos" not in sheets:
-    st.error("El Excel no contiene una hoja llamada 'Puntos'.")
+    st.error(f"El Excel no contiene una hoja llamada 'Puntos'. Hojas detectadas: {list(sheets.keys())}")
     st.stop()
 
-ranking, team_points = parse_puntos(sheets["Puntos"])
+try:
+    ranking, team_points = parse_puntos(sheets["Puntos"])
+except Exception as e:
+    st.error(f"No se pudo interpretar la hoja 'Puntos': {e}")
+    st.stop()
 
 st.success(f"Datos cargados correctamente ({pd.Timestamp.now().strftime('%d/%m/%Y %H:%M:%S')}).")
 
@@ -180,12 +230,12 @@ t1, t2, t3 = st.tabs(["🏆 Ranking", "📈 Evolución", "🌍 Equipos"])
 with t1:
     st.subheader("Clasificación actual")
     podium = ranking.nsmallest(3, "POS")[["PARTICIPANTE", "PUNTOS_TOTALES"]].reset_index(drop=True)
-    a, b, c = st.columns(3)
+    cols = st.columns(3)
     medals = ["🥇", "🥈", "🥉"]
-    for i, col in enumerate([a, b, c]):
+    for i, col in enumerate(cols):
         if i < len(podium):
             row = podium.iloc[i]
-            col.metric(f"{medals[i]} {row['PARTICIPANTE']}", int(row["PUNTOS_TOTALES"]))
+            col.metric(f"{medals[i]} {row['PARTICIPANTE']}", int(row['PUNTOS_TOTALES']))
 
     term = st.text_input("Buscar participante")
     view = ranking.copy()
