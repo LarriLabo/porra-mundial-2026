@@ -244,10 +244,10 @@ style = f"""
 .podium-2 {{ background: linear-gradient(135deg, {C_GRAY} 0%, #9C9B9B 60%, {C_GRAY_LIGHT} 100%); color:{C_GRAY_DARK}; min-height:165px; }}
 .podium-3 {{ background: linear-gradient(135deg, #a85810 0%, {C_SECONDARY_DARK} 60%, {C_SECONDARY} 100%); min-height:145px; }}
 .podium-step-label {{ font-size:2rem; font-weight:900; margin-bottom:.25rem; text-align:center; }}
-.podium-name {{ font-weight:900; font-size:1.08rem; margin-top:.45rem; line-height:1.18; text-align:center; max-width:100%; overflow-wrap:anywhere; }}
-.podium-name-multi {{ font-size:1rem; line-height:1.25; }}
-.podium-1 .podium-name {{ font-size:1.24rem; line-height:1.22; }}
-.podium-1 .podium-name-multi {{ font-size:1.12rem; line-height:1.28; }}
+.podium-name {{ font-weight:900; font-size:1.28rem; margin-top:.5rem; line-height:1.22; text-align:center; max-width:100%; overflow-wrap:anywhere; text-shadow:0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.10); }}
+.podium-name-multi {{ font-size:1.14rem; line-height:1.3; }}
+.podium-1 .podium-name {{ font-size:1.42rem; line-height:1.24; text-shadow:0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.14); }}
+.podium-1 .podium-name-multi {{ font-size:1.22rem; line-height:1.32; }}
 .podium-points {{ margin-top:.5rem; font-size:1rem; font-weight:800; text-align:center; }}
 .podium-prize {{ margin-top:.35rem; font-size:.92rem; font-weight:900; text-align:center; opacity:.98; }}
 .stTabs [data-baseweb="tab-list"] {{ gap:.45rem; border-bottom:2px solid rgba(0,74,95,.12); }}
