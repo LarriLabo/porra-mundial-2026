@@ -6,7 +6,7 @@ import urllib.request
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Bienvenid@s · Porra Mundial 2026", page_icon="🌍", layout="wide")
+st.set_page_config(page_title="VSDTI Porra Mundial 2026", page_icon="🌍", layout="wide")
 
 SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBMvHH0xI/edit?usp=drivesdk&ouid=105950533705571221592&rtpof=true&sd=true"
 CACHE_MINUTES = 5
@@ -168,12 +168,11 @@ style = f"""
   background: radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%);
 }}
 .hero-top {{ font-size: .96rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .96; }}
-.hero-title {{ font-size: 2.45rem; line-height: 1.08; font-weight: 900; margin-top: .45rem; margin-bottom: .45rem; }}
+.hero-title {{ font-size: 2.6rem; line-height: 1.08; font-weight: 900; margin-top: .45rem; margin-bottom: .45rem; }}
 .hero-sub {{ font-size: 1.08rem; line-height: 1.48; font-weight: 700; max-width: 860px; opacity: .98; }}
 .badge-row {{ display:flex; flex-wrap:wrap; gap:.65rem; margin-top: 1rem; }}
 .badge {{ background: rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); color:#fff; padding:.5rem .8rem; border-radius:999px; font-weight:800; font-size:.92rem; backdrop-filter: blur(2px); }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
-.card-highlight {{ background: linear-gradient(180deg, rgba(242,142,0,.12) 0%, rgba(255,255,255,1) 50%); border:1px solid rgba(242,142,0,.22); }}
 .card-icon {{ font-size:1.55rem; margin-bottom:.18rem; }}
 .card-title {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; margin-bottom:.2rem; }}
 .card-text {{ color:{C_GRAY_DARK}; font-size:.95rem; line-height:1.42; font-weight:600; }}
@@ -201,12 +200,12 @@ style = f"""
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top: .9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
 @media (max-width: 980px) {{
-  .hero-title {{ font-size: 2.05rem; }}
+  .hero-title {{ font-size: 2.1rem; }}
   .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }}
   .levels-grid {{ grid-template-columns:1fr; }}
 }}
 @media (max-width: 640px) {{
-  .hero-title {{ font-size: 1.7rem; }}
+  .hero-title {{ font-size: 1.75rem; }}
   .hero-sub {{ font-size: .98rem; }}
   .kpi-grid {{ grid-template-columns:1fr 1fr; gap:.65rem; }}
 }}
@@ -217,11 +216,10 @@ st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"""
 <div class='hero'>
   <div class='hero-top'>Bienvenid@s</div>
-  <div class='hero-title'>Porra Mundial 2026 · Cierre de apuestas: {escape_html(DEADLINE_TEXT)} · Recaudación actual: {recaudacion} €</div>
+  <div class='hero-title'>VSDTI Porra Mundial 2026</div>
   <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! ⚽🌍 Aquí se viene emoción, piques sanos, pronósticos imposibles y alguna que otra aparición repentina del clásico “yo eso ya lo sabía”. De momento, el balón está en el punto de penalti… y <b>ya van {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada.</div>
   <div class='badge-row'>
     <div class='badge'>⚽ Mundial 2026</div>
-    <div class='badge'>🌎 Canadá · México · USA</div>
     <div class='badge'>🔥 {total_porras} porras realizadas</div>
     <div class='badge'>💰 {recaudacion} € en premios</div>
     <div class='badge'>⏰ Cierre: {escape_html(DEADLINE_TEXT)}</div>
@@ -238,31 +236,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.markdown("""
-    <div class='card card-highlight'>
-      <div class='card-icon'>🌎</div>
-      <div class='card-title'>Tres países, un solo fiestón</div>
-      <div class='card-text'>Canadá, México y Estados Unidos comparten escenario en una edición histórica, gigantesca y con aroma a Mundial inolvidable.</div>
-    </div>
-    """, unsafe_allow_html=True)
-with c2:
-    st.markdown("""
-    <div class='card'>
-      <div class='card-icon'>📅</div>
-      <div class='card-title'>Un verano para la historia</div>
-      <div class='card-text'>48 selecciones, 104 partidos y un calendario cargado de noches épicas, sorpresas, alegrías y mucho “te lo dije”.</div>
-    </div>
-    """, unsafe_allow_html=True)
-with c3:
-    st.markdown(f"""
-    <div class='card'>
-      <div class='card-icon'>📝</div>
-      <div class='card-title'>Todavía hay sitio en la porra</div>
-      <div class='card-text'>Ya hay <b>{total_porras}</b> porras registradas. Si alguien falta por apuntarse, que no se despiste: luego llegan los goles, los aciertos... y las lamentaciones.</div>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"""
+<div class='card' style='margin-top:1rem;'>
+  <div class='card-icon'>📝</div>
+  <div class='card-title'>Todavía hay sitio en la porra</div>
+  <div class='card-text'>Ya hay <b>{total_porras}</b> porras registradas. Si alguien falta por apuntarse, que no se despiste: luego llegan los goles, los aciertos... y las lamentaciones.</div>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <div class='callout'>
