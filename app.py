@@ -1,12 +1,9 @@
 
 import io
 import re
-import math
 import urllib.request
-from collections import Counter
 
 import pandas as pd
-import matplotlib.pyplot as plt
 import streamlit as st
 
 st.set_page_config(page_title="Bienvenid@s · Porra Mundial 2026", page_icon="🌍", layout="wide")
@@ -70,66 +67,39 @@ def count_entries(df: pd.DataFrame) -> int:
     return int(df['PARTICIPANTE'].dropna().shape[0])
 
 
-def build_level_selection_chart(df: pd.DataFrame) -> bytes | None:
+def escape_html(text):
+    text = str(text)
+    return (text.replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('"', '&quot;')
+                .replace("'", '&#39;'))
+
+
+def render_level_selection_chart(df: pd.DataFrame) -> str:
     levels = get_levels(df)
     if not levels:
-        return None
+        return ""
 
-    total = max(count_entries(df), 1)
-    n_levels = len(levels)
-    ncols = 2 if n_levels > 1 else 1
-    nrows = math.ceil(n_levels / ncols)
-
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(14, 3.8 * nrows))
-    if not isinstance(axes, (list, tuple)):
-        try:
-            axes = axes.flatten()
-        except Exception:
-            axes = [axes]
-    else:
-        axes = list(axes)
-
-    if hasattr(axes, 'flatten'):
-        axes = list(axes.flatten())
-
-    for idx, level in enumerate(levels):
-        ax = axes[idx]
+    parts = ["<div class='levels-grid'>"]
+    for level in levels:
         series = df[level].dropna().astype(str).str.strip()
         if series.empty:
-            ax.axis('off')
             continue
-
         percentages = (series.value_counts(normalize=True) * 100).round(1).head(TOP_TEAMS_PER_LEVEL)
-        labels = list(percentages.index)[::-1]
-        values = list(percentages.values)[::-1]
         color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
-
-        ax.barh(labels, values, color=color, alpha=0.95)
-        ax.set_xlim(0, max(values) * 1.18 if values else 100)
-        ax.set_title(str(level), fontsize=12, fontweight='bold', color=C_PRIMARY_DARK)
-        ax.set_xlabel('% de porras', fontsize=10, color=C_GRAY_DARK)
-        ax.tick_params(axis='y', labelsize=9)
-        ax.tick_params(axis='x', labelsize=8)
-        ax.grid(axis='x', linestyle='--', alpha=0.22)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        ax.spines['bottom'].set_alpha(0.15)
-
-        for y, val in enumerate(values):
-            ax.text(val + (max(values) * 0.02), y, f"{val:.1f}%", va='center', ha='left', fontsize=9, color=C_GRAY_DARK, fontweight='bold')
-
-    for extra_ax in axes[n_levels:]:
-        extra_ax.axis('off')
-
-    fig.suptitle('Equipos más seleccionados por nivel', fontsize=16, fontweight='bold', color=C_PRIMARY_DARK, y=0.995)
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
-
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=180, bbox_inches='tight')
-    plt.close(fig)
-    buf.seek(0)
-    return buf.getvalue()
+        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{escape_html(level)}</div>")
+        for team, pct in percentages.items():
+            pct_str = f"{pct:.1f}%"
+            parts.append(
+                f"<div class='bar-row'>"
+                f"<div class='bar-top'><span class='bar-team'>{escape_html(team)}</span><span class='bar-pct'>{pct_str}</span></div>"
+                f"<div class='bar-track'><div class='bar-fill' style='width:{min(float(pct),100)}%; background:{color};'></div></div>"
+                f"</div>"
+            )
+        parts.append("</div>")
+    parts.append("</div>")
+    return ''.join(parts)
 
 
 def find_duplicate_bets(df: pd.DataFrame):
@@ -162,13 +132,12 @@ try:
     resumen_df = load_resumen()
     total_porras = count_entries(resumen_df)
     recaudacion = total_porras * PRICE_PER_ENTRY
-    chart_png = build_level_selection_chart(resumen_df)
+    chart_html = render_level_selection_chart(resumen_df)
     duplicate_bets = find_duplicate_bets(resumen_df)
 except Exception:
-    resumen_df = pd.DataFrame()
     total_porras = 0
     recaudacion = 0
-    chart_png = None
+    chart_html = ""
     duplicate_bets = []
 
 style = f"""
@@ -222,10 +191,20 @@ style = f"""
 .dup-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-left:6px solid {C_SECONDARY}; border-radius:18px; padding:.9rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); margin-bottom:.7rem; }}
 .dup-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.18rem; }}
 .dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
+.levels-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top: .25rem; }}
+.level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
+.level-card-title {{ font-weight:900; font-size:1.05rem; margin-bottom:.6rem; }}
+.bar-row {{ margin-bottom:.58rem; }}
+.bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }}
+.bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }}
+.bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }}
+.bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
+.bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top: .9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
 @media (max-width: 980px) {{
   .hero-title {{ font-size: 2.2rem; }}
   .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }}
+  .levels-grid {{ grid-template-columns:1fr; }}
 }}
 @media (max-width: 640px) {{
   .hero-title {{ font-size: 1.9rem; }}
@@ -294,8 +273,8 @@ st.markdown("""
 
 st.markdown("<div class='section-title'>Radiografía de las apuestas realizadas</div>", unsafe_allow_html=True)
 st.markdown("<div class='analysis-box'><div class='analysis-note'>Para quien todavía se lo está pensando: aquí va una foto rápida de por dónde van las apuestas. El gráfico muestra el porcentaje de porras que llevan a los equipos más repetidos en cada nivel, para que se vea dónde está el rebaño… y dónde puede haber hueco para una predicción valiente.</div></div>", unsafe_allow_html=True)
-if chart_png:
-    st.image(chart_png, use_container_width=True)
+if chart_html:
+    st.markdown(chart_html, unsafe_allow_html=True)
 else:
     st.info("Todavía no hay datos suficientes para generar el gráfico de selecciones por nivel.")
 
