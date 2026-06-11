@@ -442,32 +442,32 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 tabs = st.tabs([
+    "Selección de participantes",
     "Calendario",
     "Radar de afinidades entre participantes",
     "Radiografía de las apuestas realizadas",
-    "Selección de participantes",
 ])
 
 with tabs[0]:
-    st.markdown(calendar_html, unsafe_allow_html=True)
+    if participant_selection_html:
+        st.markdown(participant_selection_html, unsafe_allow_html=True)
+    else:
+        st.info("Todavía no hay suficientes registros para mostrar la selección de participantes.")
 
 with tabs[1]:
+    st.markdown(calendar_html, unsafe_allow_html=True)
+
+with tabs[2]:
     if similarity_html:
         st.markdown(similarity_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar el radar de afinidades.")
 
-with tabs[2]:
+with tabs[3]:
     if chart_html:
         st.markdown(chart_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para generar el resumen de porcentajes por nivel.")
-
-with tabs[3]:
-    if participant_selection_html:
-        st.markdown(participant_selection_html, unsafe_allow_html=True)
-    else:
-        st.info("Todavía no hay suficientes registros para mostrar la selección de participantes.")
 
 if st.button("Actualizar"):
     refresh_data()
