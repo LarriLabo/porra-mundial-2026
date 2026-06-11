@@ -4,7 +4,6 @@ import re
 import urllib.request
 import pandas as pd
 import streamlit as st
-from itertools import combinations
 
 st.set_page_config(page_title="Versia Servicios Distribuidos · Porra Mundial 2026", page_icon="🌍", layout="wide")
 
@@ -103,11 +102,11 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
             if teams_text else f"<div class='level-name'>{escape_html(level)}</div>"
         )
         parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_html}</div>")
-        for team_name, pct_value in percentages:
+        for idx, (_team, pct_value) in enumerate(percentages, start=1):
             pct_str = f"{pct_value:.1f}%"
             parts.append(
                 f"<div class='bar-row'>"
-                f"<div class='bar-top'><span class='bar-team'>{escape_html(team_name)}</span><span class='bar-pct'>{pct_str}</span></div>"
+                f"<div class='bar-top'><span class='bar-team'>{idx}ª selección del nivel</span><span class='bar-pct'>{pct_str}</span></div>"
                 f"<div class='bar-track'><div class='bar-fill' style='width:{min(max(pct_value,0),100)}%; background:{color};'></div></div>"
                 f"</div>"
             )
@@ -116,146 +115,36 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
     return ''.join(parts)
 
 
-def get_bet_records(df: pd.DataFrame):
+def find_duplicate_bets(df: pd.DataFrame):
+    if 'PARTICIPANTE' not in df.columns:
+        return []
     levels = get_levels(df)
-    if 'PARTICIPANTE' not in df.columns or not levels:
-        return [], levels
+    if not levels:
+        return []
     work = df.dropna(subset=['PARTICIPANTE']).copy()
-    work['PARTICIPANTE'] = work['PARTICIPANTE'].astype(str).str.strip()
     for level in levels:
         work[level] = work[level].fillna('').astype(str).str.strip()
-    records = []
-    for _, row in work[['PARTICIPANTE'] + levels].iterrows():
-        records.append({
-            'participante': row['PARTICIPANTE'],
-            'choices': {level: row[level] for level in levels}
-        })
-    return records, levels
-
-
-def find_duplicate_bets(df: pd.DataFrame):
-    records, levels = get_bet_records(df)
-    if not records or not levels:
-        return []
-    items = []
-    for rec in records:
-        combo_key = ' || '.join(rec['choices'][level] for level in levels)
-        items.append((combo_key, rec['participante']))
-    groups = {}
-    for key, participante in items:
-        groups.setdefault(key, []).append(participante)
+    work['PARTICIPANTE'] = work['PARTICIPANTE'].astype(str).str.strip()
+    work['combo_key'] = work[levels].agg(' || '.join, axis=1)
     duplicates = []
-    for participantes in groups.values():
-        if len(participantes) > 1:
-            duplicates.append({
-                'participantes': participantes,
-                'repeticiones': len(participantes)
-            })
+    for _, group in work.groupby('combo_key'):
+        if len(group) > 1:
+            duplicates.append({'participantes': group['PARTICIPANTE'].tolist(), 'repeticiones': int(len(group))})
     duplicates.sort(key=lambda x: (-x['repeticiones'], ', '.join(x['participantes'])))
     return duplicates
-
-
-def analyze_similarity(df: pd.DataFrame):
-    records, levels = get_bet_records(df)
-    if not records or not levels:
-        return {
-            'exact_groups': [],
-            'top_pairs': [],
-            'near_clone_pairs': 0,
-            'max_matches': 0,
-            'levels_count': len(levels)
-        }
-
-    exact_groups = find_duplicate_bets(df)
-    pair_scores = []
-    for left, right in combinations(records, 2):
-        matches = 0
-        diff_levels = []
-        for level in levels:
-            if left['choices'][level] == right['choices'][level]:
-                matches += 1
-            else:
-                diff_levels.append(level)
-        pair_scores.append({
-            'a': left['participante'],
-            'b': right['participante'],
-            'matches': matches,
-            'diff_levels': diff_levels,
-        })
-
-    pair_scores.sort(key=lambda x: (-x['matches'], x['a'], x['b']))
-    non_exact = [p for p in pair_scores if p['matches'] < len(levels)]
-    top_pairs = non_exact[:5]
-    near_clone_pairs = sum(1 for p in non_exact if p['matches'] >= max(len(levels) - 1, 1))
-    max_matches = pair_scores[0]['matches'] if pair_scores else 0
-
-    return {
-        'exact_groups': exact_groups,
-        'top_pairs': top_pairs,
-        'near_clone_pairs': near_clone_pairs,
-        'max_matches': max_matches,
-        'levels_count': len(levels)
-    }
-
-
-def render_similarity_block(insights: dict) -> str:
-    levels_count = insights.get('levels_count', 0)
-    exact_groups = insights.get('exact_groups', [])
-    top_pairs = insights.get('top_pairs', [])
-    near_clone_pairs = insights.get('near_clone_pairs', 0)
-    max_matches = insights.get('max_matches', 0)
-
-    parts = [
-        "<div class='section-title'>Radar de afinidades entre participantes</div>",
-        "<div class='analysis-box'>",
-        "<div class='affinity-summary'>Hemos comparado las selecciones de todas las personas apuntadas para detectar porras espejo, duplas casi calcadas y parecidos sospechosamente altos. Aquí está el salseo bueno.</div>",
-        "<div class='affinity-stats'>",
-        f"<div class='affinity-stat'><div class='affinity-stat-value'>{len(exact_groups)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div>",
-        f"<div class='affinity-stat'><div class='affinity-stat-value'>{near_clone_pairs}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div>",
-        f"<div class='affinity-stat'><div class='affinity-stat-value'>{max_matches}/{levels_count}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div>",
-        "</div>",
-        "<div class='affinity-grid'>"
-    ]
-
-    if exact_groups:
-        exact_html = ["<div class='affinity-card'><div class='affinity-card-title'>Porras espejo</div>"]
-        for dup in exact_groups[:4]:
-            participantes = ', '.join(escape_html(p) for p in dup['participantes'])
-            exact_html.append(f"<div class='affinity-item'><b>{dup['repeticiones']} personas</b>: {participantes}</div>")
-        exact_html.append("</div>")
-        parts.append(''.join(exact_html))
-    else:
-        parts.append("<div class='affinity-card'><div class='affinity-card-title'>Porras espejo</div><div class='affinity-item'>De momento, no hay apuestas 100% idénticas. Cada cual va con su librillo… por ahora.</div></div>")
-
-    if top_pairs:
-        pair_html = ["<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div>"]
-        for pair in top_pairs:
-            pair_names = f"{escape_html(pair['a'])} · {escape_html(pair['b'])}"
-            diff_text = ', '.join(escape_html(x) for x in pair['diff_levels']) if pair['diff_levels'] else 'Ningún nivel'
-            pair_html.append(
-                f"<div class='affinity-item'><b>{pair_names}</b><br>Coinciden en <b>{pair['matches']}/{levels_count}</b> niveles."
-                f" <span class='affinity-muted'>Difieren en: {diff_text}</span></div>"
-            )
-        pair_html.append("</div>")
-        parts.append(''.join(pair_html))
-    else:
-        parts.append("<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>Todavía no hay suficientes datos para detectar afinidades curiosas.</div></div>")
-
-    parts.append("</div></div>")
-    return ''.join(parts)
 
 
 try:
     resumen_df = load_resumen()
     total_porras = count_entries(resumen_df)
+    recaudacion = total_porras * PRICE_PER_ENTRY
     chart_html = render_level_selection_chart(resumen_df)
     duplicate_bets = find_duplicate_bets(resumen_df)
-    similarity_html = render_similarity_block(analyze_similarity(resumen_df))
 except Exception:
     total_porras = 0
+    recaudacion = 0
     chart_html = ""
     duplicate_bets = []
-    similarity_html = ""
 
 style = f"""
 <style>
@@ -268,23 +157,14 @@ style = f"""
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
+.card-icon {{ font-size:1.55rem; margin-bottom:.18rem; }}
+.card-title {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; margin-bottom:.2rem; }}
 .card-text {{ color:{C_GRAY_DARK}; font-size:.98rem; line-height:1.52; font-weight:600; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
 .callout {{ margin-top:1rem; background:linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding:1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
 .callout-title {{ font-weight:900; font-size:1.15rem; margin-bottom:.15rem; }}
 .callout-text {{ font-weight:700; font-size:.97rem; line-height:1.45; }}
 .analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
-.affinity-summary {{ color:{C_GRAY_DARK}; font-size:.96rem; line-height:1.5; font-weight:600; margin-bottom:.85rem; }}
-.affinity-stats {{ display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:.9rem; }}
-.affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }}
-.affinity-stat-value {{ color:{C_SECONDARY_DARK}; font-size:1.6rem; font-weight:900; line-height:1; }}
-.affinity-stat-label {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:800; margin-top:.28rem; line-height:1.25; }}
-.affinity-grid {{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:.9rem; }}
-.affinity-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:18px; padding:.9rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
-.affinity-card-title {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; margin-bottom:.45rem; }}
-.affinity-item {{ color:{C_GRAY_DARK}; font-size:.92rem; line-height:1.45; font-weight:600; margin-bottom:.55rem; }}
-.affinity-item:last-child {{ margin-bottom:0; }}
-.affinity-muted {{ color:{C_GRAY}; }}
 .dup-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-left:6px solid {C_SECONDARY}; border-radius:18px; padding:.9rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); margin-bottom:.7rem; }}
 .dup-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.18rem; }}
 .dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
@@ -300,7 +180,7 @@ style = f"""
 .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top:.9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
-@media (max-width: 980px) {{ .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .levels-grid, .affinity-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} }}
+@media (max-width: 980px) {{ .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .levels-grid {{ grid-template-columns:1fr; }} }}
 @media (max-width: 640px) {{ .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} }}
 </style>
 """
@@ -325,9 +205,6 @@ st.markdown("""
   <div class='callout-text'>Aquí no hay Champions del Excel, PowerBi ni gurús invencibles: hay compis con fe ciega, pronósticos valientes y mucho comentario de pasillo. Lo bonito será vacilar con cariño, celebrar los aciertos improbables y sobrevivir con dignidad cuando falle el “favoritísimo”. Y aviso a navegantes: la IA podrá calcular mucho… pero no siempre gana. A veces el instinto del café (soluble) de media mañana también juega su partido.</div>
 </div>
 """, unsafe_allow_html=True)
-
-if similarity_html:
-    st.markdown(similarity_html, unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Radiografía de las apuestas realizadas</div>", unsafe_allow_html=True)
 if chart_html:
