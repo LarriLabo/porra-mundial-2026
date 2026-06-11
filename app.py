@@ -269,7 +269,6 @@ style = f"""
 .hero-title-block {{ text-align:center; width:100%; }}
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
-.card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
 .premios-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
 .premios-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
@@ -335,8 +334,8 @@ st.markdown(f"""
 
 st.markdown(f"""
 <div class='premios-box'>
-  <div class='premios-head'>Simulación del reparto de premios</div>
-  <div class='premios-sub'>Si el premio se repartiera entre una porra campeona y una subcampeona, así podría quedar el podio económico.</div>
+  <div class='premios-head'>Reparto de premios</div>
+  <div class='premios-sub'>Si hubiera empate en el <b>1er puesto</b>, el premio se repartiría entre las personas empatadas y <b>no habría reparto al 2º puesto</b>.</div>
   <div class='premios-grid'>
     <div class='premio-card premio-card--oro'>
       <div class='premio-icon'>🏆</div>
