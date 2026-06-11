@@ -162,10 +162,10 @@ with c3:
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown(f"""
+st.markdown("""
 <div class='callout'>
-  <div class='callout-title'>¡Que ruede el balón y que salten los pronósticos!</div>
-  <div class='callout-text'>La emoción ya está calentando motores. Reúne a la cuadrilla, lanza el pique sano, presume de olfato futbolero y anima a quien falte a sumarse. Porque un Mundial se disfruta más cuando cada partido también cuenta en la porra. Y sí... luego vendrán las clasificaciones, los aciertos imposibles y los mensajes de “yo aposté por ellos desde el principio”.</div>
+  <div class='callout-title'>Que empiece el pique sano de oficina</div>
+  <div class='callout-text'>Aquí no hay Champions del Excel ni gurús invencibles: hay compis con fe ciega, pronósticos valientes y mucho comentario de pasillo. Lo bonito será vacilar con cariño, celebrar los aciertos improbables y sobrevivir con dignidad cuando falle el “favoritísimo”. Y ojo, pequeña reflexión para la oficina: la IA podrá calcular mucho… pero no siempre gana. A veces el instinto del café de media mañana también juega su partido.</div>
 </div>
-<div class='footer-note'>Mundial 2026 + buen ambiente + pronósticos valientes = combinación peligrosa.</div>
+<div class='footer-note'>Buen rollo, alguna pulla elegante y mucho fútbol: ese es el espíritu.</div>
 """, unsafe_allow_html=True)
