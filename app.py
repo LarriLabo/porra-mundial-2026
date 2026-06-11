@@ -162,7 +162,6 @@ def render_similarity_block(insights: dict) -> str:
         pair_card = "<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>No hay suficientes datos para detectar afinidades destacables entre porras.</div></div>"
 
     return (
-        "<div class='section-title'>Radar de afinidades entre participantes</div>"
         "<div class='analysis-box'>"
         "<div class='affinity-stats'>"
         f"<div class='affinity-stat'><div class='affinity-stat-value'>{participaciones}</div><div class='affinity-stat-label'>Participaciones</div></div>"
@@ -185,8 +184,21 @@ def render_match_cards(matches):
             f"<div class='match-card-time'>{escape_html(item['time'])} h</div>"
             f"<div class='match-card-title'>{escape_html(item['match'])}</div>"
             f"<div class='match-card-group'>{escape_html(item['group'])}</div>"
-            f"</div>"
-            f"</div>"
+            f"</div></div>"
+        )
+    parts.append("</div>")
+    return ''.join(parts)
+
+
+def render_group_stage_periods_html() -> str:
+    parts = ["<div class='group-stage-accordion'>"]
+    for period in GROUP_STAGE_PERIODS:
+        title = f"{period['date_range']} · {period['title']}"
+        parts.append(
+            "<details class='period-details'>"
+            f"<summary class='period-summary'>{escape_html(title)}</summary>"
+            f"<div class='period-body'><div class='phase-head-summary' style='margin:.1rem 0 .5rem 0;'>{escape_html(period['subtitle'])}</div>{render_match_cards(period['matches'])}</div>"
+            "</details>"
         )
     parts.append("</div>")
     return ''.join(parts)
@@ -198,15 +210,22 @@ def render_tail_phase_cards():
     for idx, phase in enumerate(CALENDAR_TAIL_PHASES):
         accent = colors[idx % len(colors)]
         parts.append(
-            f"<div class='phase-card'>"
-            f"<div class='phase-head' style='border-left:6px solid {accent};'>"
-            f"<div class='phase-head-main'><span class='phase-head-icon'>{escape_html(phase['icon'])}</span><span class='phase-head-title'>{escape_html(phase['phase'])}</span></div>"
-            f"<div class='phase-head-range'>{escape_html(phase['range'])}</div>"
-            f"<div class='phase-head-summary'>{escape_html(phase['summary'])}</div>"
-            f"</div></div>"
+            f"<div class='phase-card'><div class='phase-head' style='border-left:6px solid {accent};'><div class='phase-head-main'><span class='phase-head-icon'>{escape_html(phase['icon'])}</span><span class='phase-head-title'>{escape_html(phase['phase'])}</span></div><div class='phase-head-range'>{escape_html(phase['range'])}</div><div class='phase-head-summary'>{escape_html(phase['summary'])}</div></div></div>"
         )
     parts.append("</div>")
     return ''.join(parts)
+
+
+def render_calendar_content() -> str:
+    timeline_colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
+    timeline_parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026</div><div class='calendar-timeline'>"]
+    for idx, node in enumerate(TIMELINE_NODES):
+        accent = timeline_colors[idx % len(timeline_colors)]
+        timeline_parts.append(
+            f"<div class='timeline-node'><div class='timeline-icon' style='background:{accent};'>{escape_html(node['icon'])}</div><div class='timeline-phase'>{escape_html(node['phase'])}</div><div class='timeline-range'>{escape_html(node['range'])}</div></div>"
+        )
+    timeline_parts.append("</div></div>")
+    return ''.join(timeline_parts) + render_group_stage_periods_html() + render_tail_phase_cards()
 
 
 def render_level_selection_chart(df: pd.DataFrame) -> str:
@@ -240,7 +259,8 @@ def render_participant_selection_block(df: pd.DataFrame) -> str:
     records, levels = get_bet_records(df)
     if not records or not levels:
         return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay suficientes registros para mostrar la selección de participantes.</div></div>"
-    parts = ["<div class='section-title'>Selección de participantes</div>", "<div class='participant-grid'>"]
+    records = sorted(records, key=lambda r: str(r.get('participante', '')).strip().casefold())
+    parts = ["<div class='participant-grid'>"]
     for rec in records:
         name = escape_html(rec['participante'])
         parts.append(f"<div class='participant-card'><div class='participant-name'>{name}</div><div class='participant-picks'>")
@@ -270,6 +290,7 @@ except Exception:
     similarity_html = ""
     participant_selection_html = ""
 
+calendar_html = render_calendar_content()
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
 premio_segunda = round(recaudacion * 0.30, 2)
@@ -290,7 +311,7 @@ style = f"""
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
-.premios-box, .calendar-box, .calendar-top-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
+.premios-box, .calendar-top-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
 .premios-head, .calendar-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
 .premios-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
 .premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
@@ -315,16 +336,21 @@ style = f"""
 .phase-head-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; }}
 .phase-head-range {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.92rem; margin-top:.22rem; }}
 .phase-head-summary {{ color:{C_GRAY_DARK}; font-weight:700; font-size:.83rem; margin-top:.12rem; line-height:1.3; }}
-[data-testid="stExpander"] {{ border:none !important; box-shadow:none !important; margin-top:.55rem; }}
-[data-testid="stExpander"] details {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
-[data-testid="stExpander"] details summary {{ background:rgba(50,125,142,.035); padding:.8rem 1rem; border-left:6px solid {C_PRIMARY}; font-weight:900; color:{C_PRIMARY_DARK}; }}
-[data-testid="stExpander"] details[open] summary {{ border-bottom:1px solid rgba(50,125,142,.10); }}
+.group-stage-accordion {{ display:flex; flex-direction:column; gap:.7rem; margin-top:1rem; }}
+.period-details {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
+.period-summary {{ list-style:none; cursor:pointer; background:rgba(50,125,142,.035); padding:.8rem 1rem; border-left:6px solid {C_PRIMARY}; font-weight:900; color:{C_PRIMARY_DARK}; }}
+.period-summary::-webkit-details-marker {{ display:none; }}
+.period-body {{ padding:.8rem 1rem 1rem; }}
 .match-list {{ display:flex; flex-direction:column; gap:.48rem; margin-top:.25rem; }}
 .match-card {{ display:grid; grid-template-columns:90px 1fr; gap:.7rem; background:rgba(50,125,142,.03); border:1px solid rgba(50,125,142,.08); border-radius:16px; padding:.58rem .7rem; }}
 .match-card-date {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.82rem; line-height:1.2; }}
 .match-card-time {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.9rem; line-height:1.15; }}
 .match-card-title {{ color:{C_GRAY_DARK}; font-weight:800; font-size:.88rem; line-height:1.25; margin-top:.05rem; }}
 .match-card-group {{ color:{C_GRAY}; font-weight:700; font-size:.79rem; line-height:1.28; margin-top:.08rem; }}
+[data-testid="stExpander"] {{ border:none !important; box-shadow:none !important; margin-top:1rem; }}
+[data-testid="stExpander"] details {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; overflow:hidden; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
+[data-testid="stExpander"] details summary {{ background:rgba(50,125,142,.035); padding:.9rem 1rem; border-left:6px solid {C_PRIMARY_DARK}; font-weight:900; color:{C_PRIMARY_DARK}; }}
+[data-testid="stExpander"] details[open] summary {{ border-bottom:1px solid rgba(50,125,142,.10); }}
 .analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }}
 .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }}
@@ -342,6 +368,38 @@ style = f"""
 .participant-name {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.7rem; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
 .pick-chip {{ display:flex; align-items:center; gap:.45rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }}
 .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
+[data-baseweb="tab-list"] {{
+  gap: .45rem;
+  margin-top: 1rem;
+  margin-bottom: .55rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}}
+[data-baseweb="tab"] {{
+  background: rgba(50,125,142,.035) !important;
+  border: 1px solid rgba(50,125,142,.14) !important;
+  border-radius: 999px !important;
+  padding: .55rem 1rem !important;
+  min-height: auto !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,.04);
+}}
+[data-baseweb="tab"] p {{
+  color: {C_PRIMARY_DARK} !important;
+  font-weight: 900 !important;
+  font-size: 1rem !important;
+  line-height: 1.2 !important;
+}}
+button[role="tab"][aria-selected="true"] {{
+  background: linear-gradient(135deg, rgba(0,74,95,.12) 0%, rgba(100,174,188,.14) 100%) !important;
+  border-color: rgba(50,125,142,.30) !important;
+}}
+button[role="tab"][aria-selected="true"] p {{
+  color: {C_PRIMARY_DARK} !important;
+}}
+[data-baseweb="tab-highlight"] {{
+  display: none !important;
+}}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid, .calendar-tail-grid, .calendar-timeline {{ grid-template-columns:1fr; }} .timeline-node:not(:last-child)::after {{ display:none; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo {{ width:112px; height:112px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
 @media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .hero-logo-slot {{ width:90px; }} .hero-logo {{ width:82px; height:82px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
@@ -383,38 +441,33 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Bloque Calendario
-st.markdown("<div class='section-title'>Calendario</div>", unsafe_allow_html=True)
+tabs = st.tabs([
+    "Selección de participantes",
+    "Calendario",
+    "Radar de afinidades entre participantes",
+    "Radiografía de las apuestas realizadas",
+])
 
-timeline_colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
-timeline_parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026</div><div class='calendar-timeline'>"]
-for idx, node in enumerate(TIMELINE_NODES):
-    accent = timeline_colors[idx % len(timeline_colors)]
-    timeline_parts.append(
-        f"<div class='timeline-node'><div class='timeline-icon' style='background:{accent};'>{escape_html(node['icon'])}</div><div class='timeline-phase'>{escape_html(node['phase'])}</div><div class='timeline-range'>{escape_html(node['range'])}</div></div>"
-    )
-timeline_parts.append("</div></div>")
-st.markdown(''.join(timeline_parts), unsafe_allow_html=True)
+with tabs[0]:
+    if participant_selection_html:
+        st.markdown(participant_selection_html, unsafe_allow_html=True)
+    else:
+        st.info("Todavía no hay suficientes registros para mostrar la selección de participantes.")
 
-for period in GROUP_STAGE_PERIODS:
-    label = f"{period['date_range']} · {period['title']}"
-    with st.expander(label, expanded=False):
-        st.markdown(f"<div class='phase-head-summary' style='margin:.1rem 0 .5rem 0;'>{escape_html(period['subtitle'])}</div>", unsafe_allow_html=True)
-        st.markdown(render_match_cards(period['matches']), unsafe_allow_html=True)
+with tabs[1]:
+    st.markdown(calendar_html, unsafe_allow_html=True)
 
-st.markdown(render_tail_phase_cards(), unsafe_allow_html=True)
+with tabs[2]:
+    if similarity_html:
+        st.markdown(similarity_html, unsafe_allow_html=True)
+    else:
+        st.info("Todavía no hay datos suficientes para mostrar el radar de afinidades.")
 
-if similarity_html:
-    st.markdown(similarity_html, unsafe_allow_html=True)
-
-st.markdown("<div class='section-title'>Radiografía de las apuestas realizadas</div>", unsafe_allow_html=True)
-if chart_html:
-    st.markdown(chart_html, unsafe_allow_html=True)
-else:
-    st.info("Todavía no hay datos suficientes para generar el resumen de porcentajes por nivel.")
-
-if participant_selection_html:
-    st.markdown(participant_selection_html, unsafe_allow_html=True)
+with tabs[3]:
+    if chart_html:
+        st.markdown(chart_html, unsafe_allow_html=True)
+    else:
+        st.info("Todavía no hay datos suficientes para generar el resumen de porcentajes por nivel.")
 
 if st.button("Actualizar"):
     refresh_data()
