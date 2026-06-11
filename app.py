@@ -69,7 +69,7 @@ def parse_classification(raw: pd.DataFrame) -> pd.DataFrame:
     ranking['PARTICIPANTE'] = ranking['PARTICIPANTE'].astype(str).str.strip()
     ranking['PUNTOS_TOTALES'] = pd.to_numeric(ranking['PUNTOS_TOTALES'], errors='coerce').fillna(0)
     ranking = ranking.sort_values(['PUNTOS_TOTALES', 'PARTICIPANTE'], ascending=[False, True]).reset_index(drop=True)
-    ranking['POS_ORDENADA'] = ranking['PUNTOS_TOTALES'].rank(method='min', ascending=False).astype(int)
+    ranking['POS_ORDENADA'] = ranking['PUNTOS_TOTALES'].rank(method='dense', ascending=False).astype(int)
     return ranking
 
 def get_levels(df: pd.DataFrame):
@@ -283,22 +283,12 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width:980px) {{ .premios-grid, .levels-grid, .affinity-grid, .calendar-tail-grid, .calendar-timeline, .affinity-stats {{ grid-template-columns:1fr; }} .participant-accordion {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .classification-row {{ grid-template-columns:64px 1fr 105px; gap:.8rem; }} .timeline-node:not(:last-child)::after {{ display:none; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo-badge {{ padding:.35rem .45rem; border-radius:20px; }} .hero-logo {{ width:104px; height:104px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
 @media (max-width:640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:56px 1fr 92px; gap:.7rem; padding:.78rem .8rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-name {{ font-size:.95rem; }} .classification-points {{ font-size:1.25rem; }} .hero-logo-slot {{ width:90px; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
-
-.stTabs [data-baseweb="tab-list"] {{ gap:.22rem; overflow:hidden; }}
-.stTabs [data-baseweb="tab"] {{ min-width:0; flex:1 1 0; padding:.42rem .48rem; }}
-.stTabs [data-baseweb="tab"] p {{ font-size:.84rem; line-height:1.05; text-align:center; white-space:normal; }}
-.stTabs [aria-label*="left"], .stTabs [aria-label*="right"],
-.stTabs [aria-label*="Left"], .stTabs [aria-label*="Right"] {{ display:none !important; }}
-@media (max-width: 900px) {{
-  .stTabs [data-baseweb="tab"] p {{ font-size:.78rem; }}
-}}
-
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Reparto de premios</div><div class='premios-sub'>Si hubiera empate en el <b>1er puesto</b>, el premio se repartiría entre las personas empatadas y <b>no habría reparto al 2º puesto</b>.</div><div class='premios-grid'><div class='premio-card premio-card--oro'><div class='premio-icon'>🏆</div><div class='premio-pos'>1er puesto</div><div class='premio-amount'>{premio_ganadora:.2f} €</div><div class='premio-note'>La copa grande, la gloria eterna y el <b>70%</b> del bote.</div></div><div class='premio-card premio-card--plata'><div class='premio-icon'>🏆</div><div class='premio-pos'>2º puesto</div><div class='premio-amount'>{premio_segunda:.2f} €</div><div class='premio-note'>La copa de plata y un meritorio <b>30%</b> del bote.</div></div></div></div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Participantes", "Calendario", "Participaciones", "Selección nivel"])
+tabs = st.tabs(["Clasificación", "Selección de participantes", "Calendario", "Curiosidades de participaciones", "Porcentaje de selección de equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
