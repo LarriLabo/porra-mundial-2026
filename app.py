@@ -37,7 +37,9 @@ LEVEL_COLORS = {
 }
 
 LEVEL_TEAMS = {'Nivel 1': ['Francia', 'España', 'Argentina', 'Inglaterra', 'Portugal', 'Brasil'], 'Nivel 2': ['Países Bajos', 'Marruecos', 'Bélgica', 'Alemania', 'Croacia', 'Colombia'], 'Nivel 3': ['Senegal', 'México', 'EEUU', 'Uruguay', 'Japón', 'Suiza'], 'Nivel 4': ['Irán', 'Turquía', 'Ecuador', 'Austria', 'Corea del Sur', 'Australia'], 'Nivel 5': ['Argelia', 'Egipto', 'Canadá', 'Noruega', 'Panamá', 'C. de Marfil'], 'Nivel 6': ['Suecia', 'Paraguay', 'Rep. Checa', 'Escocia', 'Túnez', 'R.D. Congo'], 'Nivel 7': ['Uzbekistán', 'Catar', 'Irak', 'Sudáfrica', 'A. Saudita', 'Jordania'], 'Nivel 8': ['Bosnia', 'Cabo Verde', 'Ghana', 'Curazao', 'Haití', 'N. Zelanda']}
-CALENDAR_PHASES = [{'phase': 'Apertura', 'icon': '🏁', 'range': '11 junio 2026', 'summary': 'Inicio del torneo', 'days': [{'day': '11 junio', 'title': 'Partido inaugural', 'detail': 'Mexico City Stadium'}]}, {'phase': 'Fase de grupos', 'icon': '🗂️', 'range': '11–27 junio', 'summary': '12 grupos · 48 selecciones', 'days': [{'day': '11–17 junio', 'title': 'Primera oleada de jornadas', 'detail': 'Arranque de todos los grupos'}, {'day': '18–23 junio', 'title': 'Segunda oleada de jornadas', 'detail': 'Cruces que ordenan las tablas'}, {'day': '24–27 junio', 'title': 'Cierres definitivos', 'detail': 'Se deciden clasificados y terceros mejores'}]}, {'phase': 'Dieciseisavos', 'icon': '⚔️', 'range': '28 junio–3 julio', 'summary': 'Empieza la eliminación directa', 'days': [{'day': '28 junio', 'title': 'Round of 32 · Jornada 1', 'detail': 'Primeros cruces KO'}, {'day': '29 junio', 'title': 'Round of 32 · Jornada 2', 'detail': 'Más eliminatorias directas'}, {'day': '30 junio', 'title': 'Round of 32 · Jornada 3', 'detail': 'Cruces centrales'}, {'day': '1 julio', 'title': 'Round of 32 · Jornada 4', 'detail': 'Avanza el cuadro'}, {'day': '2 julio', 'title': 'Round of 32 · Jornada 5', 'detail': 'Penúltimas plazas'}, {'day': '3 julio', 'title': 'Round of 32 · Jornada 6', 'detail': 'Se completa el pase a octavos'}]}, {'phase': 'Octavos de final', 'icon': '🎯', 'range': '4–7 julio', 'summary': 'Quedan 16 selecciones', 'days': [{'day': '4 julio', 'title': 'Octavos · Jornada 1', 'detail': 'Primeros partidos'}, {'day': '5 julio', 'title': 'Octavos · Jornada 2', 'detail': 'Cruces por el top 8'}, {'day': '6 julio', 'title': 'Octavos · Jornada 3', 'detail': 'El cuadro se estrecha'}, {'day': '7 julio', 'title': 'Octavos · Jornada 4', 'detail': 'Últimos billetes a cuartos'}]}, {'phase': 'Cuartos de final', 'icon': '💥', 'range': '9–11 julio', 'summary': 'Ya solo quedan 8', 'days': [{'day': '9 julio', 'title': 'Cuartos · Jornada 1', 'detail': 'Primeros dos cuartos'}, {'day': '10 julio', 'title': 'Cuartos · Jornada 2', 'detail': 'Continúa la pelea por semifinales'}, {'day': '11 julio', 'title': 'Cuartos · Jornada 3', 'detail': 'Se define el cartel final de semifinales'}]}, {'phase': 'Semifinales', 'icon': '🔥', 'range': '14–15 julio', 'summary': 'La antesala de la final', 'days': [{'day': '14 julio', 'title': 'Semifinal 1', 'detail': 'Un billete para la final'}, {'day': '15 julio', 'title': 'Semifinal 2', 'detail': 'Se completa la gran final'}]}, {'phase': 'Desenlace', 'icon': '🏆', 'range': '18–19 julio', 'summary': 'Bronce y gran final', 'days': [{'day': '18 julio', 'title': 'Tercer puesto', 'detail': 'Partido por el bronce'}, {'day': '19 julio', 'title': 'Final', 'detail': 'New York New Jersey Stadium'}]}]
+GROUP_STAGE_PERIODS = [{'date_range': '11–17 junio', 'title': 'Primera oleada de jornadas', 'subtitle': 'Arranque de todos los grupos', 'matches': [{'date': '11 jun', 'time': '21:00', 'match': 'México vs Sudáfrica', 'group': 'Grupo A'}, {'date': '12 jun', 'time': '04:00', 'match': 'Corea del Sur vs Rep. Checa', 'group': 'Grupo A'}, {'date': '12 jun', 'time': '21:00', 'match': 'Canadá vs Bosnia y Herzegovina', 'group': 'Grupo B'}, {'date': '13 jun', 'time': '03:00', 'match': 'EEUU vs Paraguay', 'group': 'Grupo D'}, {'date': '13 jun', 'time': '21:00', 'match': 'Catar vs Suiza', 'group': 'Grupo B'}, {'date': '14 jun', 'time': '00:00', 'match': 'Brasil vs Marruecos', 'group': 'Grupo C'}, {'date': '14 jun', 'time': '03:00', 'match': 'Haití vs Escocia', 'group': 'Grupo C'}, {'date': '14 jun', 'time': '06:00', 'match': 'Australia vs Turquía', 'group': 'Grupo D'}, {'date': '14 jun', 'time': '19:00', 'match': 'Alemania vs Curazao', 'group': 'Grupo E'}, {'date': '14 jun', 'time': '22:00', 'match': 'Países Bajos vs Japón', 'group': 'Grupo F'}, {'date': '15 jun', 'time': '01:00', 'match': 'Costa de Marfil vs Ecuador', 'group': 'Grupo E'}, {'date': '15 jun', 'time': '04:00', 'match': 'Suecia vs Túnez', 'group': 'Grupo F'}, {'date': '15 jun', 'time': '18:00', 'match': 'España vs Cabo Verde', 'group': 'Grupo H'}, {'date': '15 jun', 'time': '21:00', 'match': 'Bélgica vs Egipto', 'group': 'Grupo G'}, {'date': '16 jun', 'time': '00:00', 'match': 'Arabia Saudita vs Uruguay', 'group': 'Grupo H'}, {'date': '16 jun', 'time': '03:00', 'match': 'Irán vs Nueva Zelanda', 'group': 'Grupo G'}, {'date': '16 jun', 'time': '21:00', 'match': 'Francia vs Senegal', 'group': 'Grupo I'}, {'date': '17 jun', 'time': '00:00', 'match': 'Irak vs Noruega', 'group': 'Grupo I'}, {'date': '17 jun', 'time': '03:00', 'match': 'Argentina vs Argelia', 'group': 'Grupo J'}, {'date': '17 jun', 'time': '06:00', 'match': 'Austria vs Jordania', 'group': 'Grupo J'}, {'date': '17 jun', 'time': '19:00', 'match': 'Portugal vs R.D. Congo', 'group': 'Grupo K'}, {'date': '17 jun', 'time': '22:00', 'match': 'Inglaterra vs Croacia', 'group': 'Grupo L'}, {'date': '18 jun', 'time': '01:00', 'match': 'Ghana vs Panamá', 'group': 'Grupo L'}, {'date': '18 jun', 'time': '04:00', 'match': 'Uzbekistán vs Colombia', 'group': 'Grupo K'}]}, {'date_range': '18–23 junio', 'title': 'Segunda oleada de jornadas', 'subtitle': 'Cruces que ordenan las tablas', 'matches': [{'date': '18 jun', 'time': '18:00', 'match': 'Sudáfrica vs Rep. Checa', 'group': 'Grupo A'}, {'date': '18 jun', 'time': '21:00', 'match': 'Suiza vs Bosnia y Herzegovina', 'group': 'Grupo B'}, {'date': '19 jun', 'time': '00:00', 'match': 'Canadá vs Catar', 'group': 'Grupo B'}, {'date': '19 jun', 'time': '03:00', 'match': 'México vs Corea del Sur', 'group': 'Grupo A'}, {'date': '19 jun', 'time': '21:00', 'match': 'EEUU vs Australia', 'group': 'Grupo D'}, {'date': '20 jun', 'time': '00:00', 'match': 'Escocia vs Marruecos', 'group': 'Grupo C'}, {'date': '20 jun', 'time': '03:00', 'match': 'Brasil vs Haití', 'group': 'Grupo C'}, {'date': '20 jun', 'time': '05:00', 'match': 'Turquía vs Paraguay', 'group': 'Grupo D'}, {'date': '20 jun', 'time': '19:00', 'match': 'Países Bajos vs Suecia', 'group': 'Grupo F'}, {'date': '20 jun', 'time': '22:00', 'match': 'Alemania vs Costa de Marfil', 'group': 'Grupo E'}, {'date': '21 jun', 'time': '02:00', 'match': 'Ecuador vs Curazao', 'group': 'Grupo E'}, {'date': '21 jun', 'time': '06:00', 'match': 'Japón vs Túnez', 'group': 'Grupo F'}, {'date': '21 jun', 'time': '18:00', 'match': 'España vs Arabia Saudita', 'group': 'Grupo H'}, {'date': '21 jun', 'time': '21:00', 'match': 'Bélgica vs Irán', 'group': 'Grupo G'}, {'date': '22 jun', 'time': '00:00', 'match': 'Uruguay vs Cabo Verde', 'group': 'Grupo H'}, {'date': '22 jun', 'time': '03:00', 'match': 'Nueva Zelanda vs Egipto', 'group': 'Grupo G'}, {'date': '22 jun', 'time': '19:00', 'match': 'Argentina vs Austria', 'group': 'Grupo J'}, {'date': '22 jun', 'time': '23:00', 'match': 'Francia vs Irak', 'group': 'Grupo I'}, {'date': '23 jun', 'time': '02:00', 'match': 'Noruega vs Senegal', 'group': 'Grupo I'}, {'date': '23 jun', 'time': '05:00', 'match': 'Jordania vs Argelia', 'group': 'Grupo J'}, {'date': '23 jun', 'time': '19:00', 'match': 'Portugal vs Uzbekistán', 'group': 'Grupo K'}, {'date': '23 jun', 'time': '22:00', 'match': 'Inglaterra vs Ghana', 'group': 'Grupo L'}, {'date': '24 jun', 'time': '01:00', 'match': 'Panamá vs Croacia', 'group': 'Grupo L'}, {'date': '24 jun', 'time': '04:00', 'match': 'Colombia vs R.D. Congo', 'group': 'Grupo K'}]}, {'date_range': '24–27 junio', 'title': 'Cierres definitivos', 'subtitle': 'Se deciden clasificados y terceros mejores', 'matches': [{'date': '24 jun', 'time': '21:00', 'match': 'Suiza vs Canadá', 'group': 'Grupo B'}, {'date': '24 jun', 'time': '21:00', 'match': 'Bosnia y Herzegovina vs Catar', 'group': 'Grupo B'}, {'date': '25 jun', 'time': '00:00', 'match': 'Marruecos vs Haití', 'group': 'Grupo C'}, {'date': '25 jun', 'time': '00:00', 'match': 'Escocia vs Brasil', 'group': 'Grupo C'}, {'date': '25 jun', 'time': '03:00', 'match': 'México vs Rep. Checa', 'group': 'Grupo A'}, {'date': '25 jun', 'time': '03:00', 'match': 'Sudáfrica vs Corea del Sur', 'group': 'Grupo A'}, {'date': '25 jun', 'time': '22:00', 'match': 'Alemania vs Ecuador', 'group': 'Grupo E'}, {'date': '25 jun', 'time': '22:00', 'match': 'Costa de Marfil vs Curazao', 'group': 'Grupo E'}, {'date': '26 jun', 'time': '01:00', 'match': 'Japón vs Suecia', 'group': 'Grupo F'}, {'date': '26 jun', 'time': '01:00', 'match': 'Túnez vs Países Bajos', 'group': 'Grupo F'}, {'date': '26 jun', 'time': '04:00', 'match': 'EEUU vs Turquía', 'group': 'Grupo D'}, {'date': '26 jun', 'time': '04:00', 'match': 'Paraguay vs Australia', 'group': 'Grupo D'}, {'date': '26 jun', 'time': '21:00', 'match': 'Francia vs Noruega', 'group': 'Grupo I'}, {'date': '26 jun', 'time': '21:00', 'match': 'Senegal vs Irak', 'group': 'Grupo I'}, {'date': '27 jun', 'time': '02:00', 'match': 'Cabo Verde vs Arabia Saudita', 'group': 'Grupo H'}, {'date': '27 jun', 'time': '02:00', 'match': 'Uruguay vs España', 'group': 'Grupo H'}, {'date': '27 jun', 'time': '05:00', 'match': 'Bélgica vs Nueva Zelanda', 'group': 'Grupo G'}, {'date': '27 jun', 'time': '05:00', 'match': 'Egipto vs Irán', 'group': 'Grupo G'}, {'date': '27 jun', 'time': '23:00', 'match': 'Inglaterra vs Panamá', 'group': 'Grupo L'}, {'date': '27 jun', 'time': '23:00', 'match': 'Croacia vs Ghana', 'group': 'Grupo L'}, {'date': '28 jun', 'time': '01:30', 'match': 'Colombia vs Portugal', 'group': 'Grupo K'}, {'date': '28 jun', 'time': '01:30', 'match': 'Uzbekistán vs R.D. Congo', 'group': 'Grupo K'}, {'date': '28 jun', 'time': '04:00', 'match': 'Argelia vs Austria', 'group': 'Grupo J'}, {'date': '28 jun', 'time': '04:00', 'match': 'Jordania vs Argentina', 'group': 'Grupo J'}]}]
+CALENDAR_TAIL_PHASES = [{'phase': 'Dieciseisavos', 'icon': '⚔️', 'range': '28 junio–3 julio', 'summary': 'Empieza la eliminación directa'}, {'phase': 'Octavos de final', 'icon': '🎯', 'range': '4–7 julio', 'summary': 'Quedan 16 selecciones'}, {'phase': 'Cuartos de final', 'icon': '💥', 'range': '9–11 julio', 'summary': 'Ya solo quedan 8'}, {'phase': 'Semifinales', 'icon': '🔥', 'range': '14–15 julio', 'summary': 'La antesala de la final'}, {'phase': 'Desenlace', 'icon': '🏆', 'range': '18–19 julio', 'summary': 'Tercer puesto y gran final'}]
+TIMELINE_NODES = [{'phase': 'Apertura', 'icon': '🏁', 'range': '11 junio'}, {'phase': 'Grupos', 'icon': '🗂️', 'range': '11–27 junio'}, {'phase': '1/32', 'icon': '⚔️', 'range': '28 junio–3 julio'}, {'phase': 'Octavos', 'icon': '🎯', 'range': '4–7 julio'}, {'phase': 'Cuartos', 'icon': '💥', 'range': '9–11 julio'}, {'phase': 'Semis', 'icon': '🔥', 'range': '14–15 julio'}, {'phase': 'Final', 'icon': '🏆', 'range': '18–19 julio'}]
 
 
 def make_download_url(url: str) -> str:
@@ -59,19 +61,23 @@ def load_resumen() -> pd.DataFrame:
     file_bytes = download_bytes(url)
     return pd.read_excel(io.BytesIO(file_bytes), sheet_name='Resumen de Apuestas', engine='openpyxl')
 
+
 def get_levels(df: pd.DataFrame):
     cols = [c for c in df.columns if str(c).strip().lower().startswith('nivel')]
     ordered = sorted(cols, key=lambda x: int(re.search(r'(\d+)', str(x)).group(1)) if re.search(r'(\d+)', str(x)) else 999)
     return ordered
+
 
 def count_entries(df: pd.DataFrame) -> int:
     if 'PARTICIPANTE' not in df.columns:
         return 0
     return int(df['PARTICIPANTE'].dropna().shape[0])
 
+
 def escape_html(text):
     text = str(text)
     return (text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#39;'))
+
 
 def get_bet_records(df: pd.DataFrame):
     levels = get_levels(df)
@@ -85,6 +91,7 @@ def get_bet_records(df: pd.DataFrame):
     for _, row in work[['PARTICIPANTE'] + levels].iterrows():
         records.append({'participante': row['PARTICIPANTE'], 'choices': {level: row[level] for level in levels}})
     return records, levels
+
 
 def find_duplicate_bets(df: pd.DataFrame):
     records, levels = get_bet_records(df)
@@ -100,6 +107,7 @@ def find_duplicate_bets(df: pd.DataFrame):
             duplicates.append({'participantes': participantes, 'repeticiones': len(participantes)})
     duplicates.sort(key=lambda x: (-x['repeticiones'], ', '.join(x['participantes'])))
     return duplicates
+
 
 def analyze_similarity(df: pd.DataFrame):
     records, levels = get_bet_records(df)
@@ -123,6 +131,7 @@ def analyze_similarity(df: pd.DataFrame):
     max_matches = pair_scores[0]['matches'] if pair_scores else 0
     return {'exact_groups': exact_groups, 'top_pairs': top_pairs, 'near_clone_pairs': near_clone_pairs, 'max_matches': max_matches, 'levels_count': len(levels), 'participaciones': len(records)}
 
+
 def render_similarity_block(insights: dict) -> str:
     levels_count = insights.get('levels_count', 0)
     exact_groups = insights.get('exact_groups', [])
@@ -140,6 +149,7 @@ def render_similarity_block(insights: dict) -> str:
         final_result_card = ''.join(final_result_html)
     else:
         final_result_card = "<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>No ha habido porras espejo.</b></div><div class='affinity-item'>No se han detectado apuestas 100% idénticas entre participantes.</div></div>"
+
     if top_pairs:
         pair_html = ["<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div>"]
         for pair in top_pairs:
@@ -150,6 +160,7 @@ def render_similarity_block(insights: dict) -> str:
         pair_card = ''.join(pair_html)
     else:
         pair_card = "<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>No hay suficientes datos para detectar afinidades destacables entre porras.</div></div>"
+
     return (
         "<div class='section-title'>Radar de afinidades entre participantes</div>"
         "<div class='analysis-box'>"
@@ -163,52 +174,40 @@ def render_similarity_block(insights: dict) -> str:
         "</div>"
     )
 
-def render_calendar_block() -> str:
-    # Top timeline strip
-    timeline = ["<div class='calendar-timeline'>"]
-    for idx, phase in enumerate(CALENDAR_PHASES):
-        accent = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY][idx % 7]
-        timeline.append(
-            f"<div class='timeline-node'>"
-            f"<div class='timeline-icon' style='background:{accent};'>{escape_html(phase['icon'])}</div>"
-            f"<div class='timeline-phase'>{escape_html(phase['phase'])}</div>"
-            f"<div class='timeline-range'>{escape_html(phase['range'])}</div>"
+
+def render_match_cards(matches):
+    parts = ["<div class='match-list'>"]
+    for item in matches:
+        parts.append(
+            f"<div class='match-card'>"
+            f"<div class='match-card-date'>{escape_html(item['date'])}</div>"
+            f"<div class='match-card-main'>"
+            f"<div class='match-card-time'>{escape_html(item['time'])} h</div>"
+            f"<div class='match-card-title'>{escape_html(item['match'])}</div>"
+            f"<div class='match-card-group'>{escape_html(item['group'])}</div>"
+            f"</div>"
             f"</div>"
         )
-    timeline.append("</div>")
+    parts.append("</div>")
+    return ''.join(parts)
 
-    # Phase-separated daily agenda
-    agenda = ["<div class='calendar-phases'>"]
-    for idx, phase in enumerate(CALENDAR_PHASES):
-        accent = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY][idx % 7]
-        agenda.append(
+
+def render_tail_phase_cards():
+    parts = ["<div class='calendar-tail-grid'>"]
+    colors = [C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK]
+    for idx, phase in enumerate(CALENDAR_TAIL_PHASES):
+        accent = colors[idx % len(colors)]
+        parts.append(
             f"<div class='phase-card'>"
             f"<div class='phase-head' style='border-left:6px solid {accent};'>"
             f"<div class='phase-head-main'><span class='phase-head-icon'>{escape_html(phase['icon'])}</span><span class='phase-head-title'>{escape_html(phase['phase'])}</span></div>"
             f"<div class='phase-head-range'>{escape_html(phase['range'])}</div>"
             f"<div class='phase-head-summary'>{escape_html(phase['summary'])}</div>"
-            f"</div>"
-            f"<div class='phase-days'>"
+            f"</div></div>"
         )
-        for day in phase['days']:
-            agenda.append(
-                f"<div class='day-row'>"
-                f"<div class='day-date'>{escape_html(day['day'])}</div>"
-                f"<div class='day-content'><div class='day-title'>{escape_html(day['title'])}</div><div class='day-detail'>{escape_html(day['detail'])}</div></div>"
-                f"</div>"
-            )
-        agenda.append("</div></div>")
-    agenda.append("</div>")
+    parts.append("</div>")
+    return ''.join(parts)
 
-    return (
-        "<div class='section-title'>Calendario</div>"
-        "<div class='calendar-box'>"
-        "<div class='calendar-head'>Calendario diario del Mundial 2026</div>"
-        "<div class='calendar-sub'>Vista por fases, con iconos y trazado tipo línea temporal para seguir el torneo de un vistazo.</div>"
-        + ''.join(timeline)
-        + ''.join(agenda)
-        + "</div>"
-    )
 
 def render_level_selection_chart(df: pd.DataFrame) -> str:
     levels = [lvl for lvl in get_levels(df) if lvl in LEVEL_TEAMS]
@@ -236,6 +235,7 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
     parts.append("</div>")
     return ''.join(parts)
 
+
 def render_participant_selection_block(df: pd.DataFrame) -> str:
     records, levels = get_bet_records(df)
     if not records or not levels:
@@ -252,22 +252,25 @@ def render_participant_selection_block(df: pd.DataFrame) -> str:
     parts.append("</div>")
     return ''.join(parts)
 
+
 def refresh_data():
     st.cache_data.clear()
     st.rerun()
+
 
 try:
     resumen_df = load_resumen()
     chart_html = render_level_selection_chart(resumen_df)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     participant_selection_html = render_participant_selection_block(resumen_df)
+    total_porras = count_entries(resumen_df)
 except Exception:
+    total_porras = 0
     chart_html = ""
     similarity_html = ""
     participant_selection_html = ""
-calendar_html = render_calendar_block()
 
-recaudacion = count_entries(resumen_df) * PRICE_PER_ENTRY if 'resumen_df' in locals() else 0
+recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
 premio_segunda = round(recaudacion * 0.30, 2)
 
@@ -287,34 +290,41 @@ style = f"""
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
-.premios-box, .calendar-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
-.premios-head, .calendar-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.6rem; text-align:center; }}
-.premios-sub, .calendar-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
+.premios-box, .calendar-box, .calendar-top-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
+.premios-head, .calendar-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
+.premios-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
 .premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
 .premio-card {{ border-radius:22px; padding:1rem; text-align:center; overflow:hidden; }}
 .premio-card--oro {{ background:linear-gradient(135deg, rgba(241,200,49,.18) 0%, rgba(242,142,0,.15) 100%); border:1px solid rgba(242,142,0,.25); }}
 .premio-card--plata {{ background:linear-gradient(135deg, rgba(112,111,111,.12) 0%, rgba(156,155,155,.16) 100%); border:1px solid rgba(112,111,111,.2); }}
 .premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }}
-.premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }} .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }} .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
-.calendar-timeline {{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.7rem; margin:.2rem 0 1rem; }}
+.premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }}
+.premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }}
+.premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
+.calendar-timeline {{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.7rem; margin:.2rem 0 .1rem; }}
 .timeline-node {{ position:relative; text-align:center; padding:.3rem; }}
 .timeline-node:not(:last-child)::after {{ content:''; position:absolute; right:-.42rem; top:19px; width:.84rem; height:3px; background:rgba(50,125,142,.18); }}
 .timeline-icon {{ width:38px; height:38px; border-radius:999px; display:flex; align-items:center; justify-content:center; margin:0 auto .35rem; font-size:1rem; }}
 .timeline-phase {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.84rem; line-height:1.2; }}
 .timeline-range {{ color:{C_GRAY}; font-weight:700; font-size:.75rem; line-height:1.2; margin-top:.12rem; }}
-.calendar-phases {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
-.phase-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:0; box-shadow:0 8px 18px rgba(0,0,0,.04); overflow:hidden; }}
+.calendar-tail-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1rem; }}
+.phase-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
 .phase-head {{ padding:.85rem 1rem .8rem; background:rgba(50,125,142,.035); }}
 .phase-head-main {{ display:flex; align-items:center; gap:.45rem; }}
 .phase-head-icon {{ font-size:1.05rem; }}
 .phase-head-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; }}
 .phase-head-range {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.92rem; margin-top:.22rem; }}
 .phase-head-summary {{ color:{C_GRAY_DARK}; font-weight:700; font-size:.83rem; margin-top:.12rem; line-height:1.3; }}
-.phase-days {{ padding:.5rem .7rem .7rem; display:flex; flex-direction:column; gap:.45rem; }}
-.day-row {{ display:grid; grid-template-columns:112px 1fr; gap:.8rem; align-items:start; background:rgba(50,125,142,.03); border:1px solid rgba(50,125,142,.08); border-radius:16px; padding:.55rem .7rem; }}
-.day-date {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.83rem; line-height:1.2; }}
-.day-title {{ color:{C_GRAY_DARK}; font-weight:800; font-size:.86rem; line-height:1.25; }}
-.day-detail {{ color:{C_GRAY}; font-weight:700; font-size:.79rem; line-height:1.28; margin-top:.08rem; }}
+[data-testid="stExpander"] {{ border:none !important; box-shadow:none !important; margin-top:.55rem; }}
+[data-testid="stExpander"] details {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
+[data-testid="stExpander"] details summary {{ background:rgba(50,125,142,.035); padding:.8rem 1rem; border-left:6px solid {C_PRIMARY}; font-weight:900; color:{C_PRIMARY_DARK}; }}
+[data-testid="stExpander"] details[open] summary {{ border-bottom:1px solid rgba(50,125,142,.10); }}
+.match-list {{ display:flex; flex-direction:column; gap:.48rem; margin-top:.25rem; }}
+.match-card {{ display:grid; grid-template-columns:90px 1fr; gap:.7rem; background:rgba(50,125,142,.03); border:1px solid rgba(50,125,142,.08); border-radius:16px; padding:.58rem .7rem; }}
+.match-card-date {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.82rem; line-height:1.2; }}
+.match-card-time {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.9rem; line-height:1.15; }}
+.match-card-title {{ color:{C_GRAY_DARK}; font-weight:800; font-size:.88rem; line-height:1.25; margin-top:.05rem; }}
+.match-card-group {{ color:{C_GRAY}; font-weight:700; font-size:.79rem; line-height:1.28; margin-top:.08rem; }}
 .analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }}
 .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }}
@@ -328,14 +338,13 @@ style = f"""
 .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
 .level-card-title {{ margin-bottom:.6rem; line-height:1.25; }} .level-name {{ font-weight:900; font-size:1rem; }} .level-teams {{ font-weight:700; font-size:.84rem; color:#706F6F; margin-top:.18rem; line-height:1.35; }}
 .bar-row {{ margin-bottom:.58rem; }} .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }} .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }} .bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }} .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }} .bar-fill {{ height:100%; border-radius:999px; }}
-.participant-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-top:.25rem; }}
-.participant-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:.95rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
+.participant-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-top:.25rem; }} .participant-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:.95rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
 .participant-name {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.7rem; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
 .pick-chip {{ display:flex; align-items:center; gap:.45rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }}
 .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
-@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid, .calendar-phases, .calendar-timeline {{ grid-template-columns:1fr; }} .timeline-node:not(:last-child)::after {{ display:none; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo {{ width:112px; height:112px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
-@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .hero-logo-slot {{ width:90px; }} .hero-logo {{ width:82px; height:82px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .participant-card, .phase-card {{ padding:0; }} .day-row {{ grid-template-columns:88px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
+@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid, .calendar-tail-grid, .calendar-timeline {{ grid-template-columns:1fr; }} .timeline-node:not(:last-child)::after {{ display:none; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo {{ width:112px; height:112px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
+@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .hero-logo-slot {{ width:90px; }} .hero-logo {{ width:82px; height:82px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
@@ -374,7 +383,26 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown(calendar_html, unsafe_allow_html=True)
+# Bloque Calendario
+st.markdown("<div class='section-title'>Calendario</div>", unsafe_allow_html=True)
+
+timeline_colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
+timeline_parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026</div><div class='calendar-timeline'>"]
+for idx, node in enumerate(TIMELINE_NODES):
+    accent = timeline_colors[idx % len(timeline_colors)]
+    timeline_parts.append(
+        f"<div class='timeline-node'><div class='timeline-icon' style='background:{accent};'>{escape_html(node['icon'])}</div><div class='timeline-phase'>{escape_html(node['phase'])}</div><div class='timeline-range'>{escape_html(node['range'])}</div></div>"
+    )
+timeline_parts.append("</div></div>")
+st.markdown(''.join(timeline_parts), unsafe_allow_html=True)
+
+for period in GROUP_STAGE_PERIODS:
+    label = f"{period['date_range']} · {period['title']}"
+    with st.expander(label, expanded=False):
+        st.markdown(f"<div class='phase-head-summary' style='margin:.1rem 0 .5rem 0;'>{escape_html(period['subtitle'])}</div>", unsafe_allow_html=True)
+        st.markdown(render_match_cards(period['matches']), unsafe_allow_html=True)
+
+st.markdown(render_tail_phase_cards(), unsafe_allow_html=True)
 
 if similarity_html:
     st.markdown(similarity_html, unsafe_allow_html=True)
