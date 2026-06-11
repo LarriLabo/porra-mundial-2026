@@ -154,8 +154,7 @@ style = f"""
 .hero {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 55%, {C_PRIMARY_LIGHT} 100%); border-radius: 30px; padding: 1.65rem 1.8rem 1.55rem; box-shadow: 0 22px 44px rgba(0,74,95,.22); color: white; position: relative; overflow: hidden; text-align: center; }}
 .hero::before {{ content:""; position:absolute; width:260px; height:260px; right:-60px; top:-65px; background:radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%); }}
 .hero::after {{ content:""; position:absolute; width:220px; height:220px; left:-30px; bottom:-70px; background:radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%); }}
-.hero-top {{ font-size:.96rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; opacity:.96; position:relative; z-index:2; }}
-.hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.45rem; position:relative; z-index:2; }}
+.hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
 .hero-sub {{ font-size:1.08rem; line-height:1.48; font-weight:700; max-width:900px; margin: .95rem auto 0; opacity:.98; position:relative; z-index:2; }}
 .badge-row {{ display:flex; justify-content:center; flex-wrap:wrap; gap:.65rem; margin-top:1rem; position:relative; z-index:2; }}
@@ -196,7 +195,6 @@ st.markdown(style, unsafe_allow_html=True)
 
 st.markdown(f"""
 <div class='hero'>
-  <div class='hero-top'>Bienvenid@s</div>
   <div class='hero-title-line1'>Versia Servicios Distribuidos</div>
   <div class='hero-title-line2'>Porra Mundial 2026</div>
   <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… y <b>ya tenemos {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
