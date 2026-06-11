@@ -157,16 +157,10 @@ style = f"""
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
 .hero-sub {{ font-size:1.08rem; line-height:1.48; font-weight:700; max-width:900px; margin: .95rem auto 0; opacity:.98; position:relative; z-index:2; }}
-.badge-row {{ display:flex; justify-content:center; flex-wrap:wrap; gap:.65rem; margin-top:1rem; position:relative; z-index:2; }}
-.badge {{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); color:#fff; padding:.5rem .8rem; border-radius:999px; font-weight:800; font-size:.92rem; backdrop-filter: blur(2px); }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
 .card-icon {{ font-size:1.55rem; margin-bottom:.18rem; }}
 .card-title {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; margin-bottom:.2rem; }}
 .card-text {{ color:{C_GRAY_DARK}; font-size:.95rem; line-height:1.42; font-weight:600; }}
-.kpi-grid {{ display:grid; grid-template-columns:repeat(4, 1fr); gap:.85rem; margin-top:1rem; }}
-.kpi {{ background:white; border-radius:18px; border:1px solid rgba(50,125,142,.13); padding:.85rem .95rem; box-shadow:0 8px 18px rgba(0,0,0,.04); text-align:center; }}
-.kpi-value {{ color:{C_SECONDARY_DARK}; font-size:1.95rem; font-weight:900; line-height:1; }}
-.kpi-label {{ color:{C_PRIMARY_DARK}; font-size:.92rem; font-weight:800; margin-top:.35rem; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
 .callout {{ margin-top:1rem; background:linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding:1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
 .callout-title {{ font-weight:900; font-size:1.15rem; margin-bottom:.15rem; }}
@@ -187,8 +181,8 @@ style = f"""
 .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top:.9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
-@media (max-width: 980px) {{ .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }} .levels-grid {{ grid-template-columns:1fr; }} }}
-@media (max-width: 640px) {{ .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .hero-sub {{ font-size:.98rem; }} .kpi-grid {{ grid-template-columns:1fr 1fr; gap:.65rem; }} }}
+@media (max-width: 980px) {{ .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .levels-grid {{ grid-template-columns:1fr; }} }}
+@media (max-width: 640px) {{ .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .hero-sub {{ font-size:.98rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
@@ -198,21 +192,6 @@ st.markdown(f"""
   <div class='hero-title-line1'>Versia Servicios Distribuidos</div>
   <div class='hero-title-line2'>Porra Mundial 2026</div>
   <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… y <b>ya tenemos {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
-  <div class='badge-row'>
-    <div class='badge'>⚽ Mundial 2026</div>
-    <div class='badge'>🔥 {total_porras} porras realizadas</div>
-    <div class='badge'>💰 {recaudacion} € en premios</div>
-    <div class='badge'>⏰ Cierre: {escape_html(DEADLINE_TEXT)}</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown(f"""
-<div class='kpi-grid'>
-  <div class='kpi'><div class='kpi-value'>48</div><div class='kpi-label'>Selecciones</div></div>
-  <div class='kpi'><div class='kpi-value'>104</div><div class='kpi-label'>Partidos</div></div>
-  <div class='kpi'><div class='kpi-value'>3</div><div class='kpi-label'>Países anfitriones</div></div>
-  <div class='kpi'><div class='kpi-value'>{total_porras}</div><div class='kpi-label'>Porras realizadas</div></div>
 </div>
 """, unsafe_allow_html=True)
 
