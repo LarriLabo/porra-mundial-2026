@@ -4,6 +4,7 @@ import re
 import urllib.request
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="VSDTI Porra Mundial 2026", page_icon="🌍", layout="wide")
 
@@ -11,6 +12,7 @@ SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBM
 CACHE_MINUTES = 5
 PRICE_PER_ENTRY = 10
 DEADLINE_TEXT = "11/06/2026 a las 12:00am"
+DEADLINE_ISO = "2026-06-11T00:00:00+02:00"
 
 C_PRIMARY_DARK = "#004A5F"
 C_PRIMARY = "#327D8E"
@@ -77,6 +79,45 @@ def escape_html(text):
                 .replace('>', '&gt;')
                 .replace('"', '&quot;')
                 .replace("'", '&#39;'))
+
+
+def render_hero(total_porras: int, recaudacion: int) -> str:
+    return f"""
+    <div class='hero-wrap'>
+      <div class='hero-top'>Bienvenid@s</div>
+      <div class='hero-title'>VSDTI Porra Mundial 2026</div>
+      <div class='countdown-card'>
+        <div class='countdown-label'>⏰ Cuenta atrás para cerrar el envío de porras</div>
+        <div class='countdown-timer' id='countdown'>--:--:--</div>
+        <div class='countdown-sub'>Plazo límite: {escape_html(DEADLINE_TEXT)}</div>
+      </div>
+      <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… y <b>ya tenemos {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
+      <div class='badge-row'>
+        <div class='badge'>⚽ Mundial 2026</div>
+        <div class='badge'>🔥 {total_porras} porras realizadas</div>
+        <div class='badge'>💰 {recaudacion} € en premios</div>
+        <div class='badge'>⏰ Cierre: {escape_html(DEADLINE_TEXT)}</div>
+      </div>
+    </div>
+    <script>
+      const target = new Date('{DEADLINE_ISO}').getTime();
+      const el = document.getElementById('countdown');
+      function updateCountdown() {{
+        const now = new Date().getTime();
+        let distance = target - now;
+        if (distance < 0) distance = 0;
+        const hours = Math.floor(distance / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        const hh = String(hours).padStart(2, '0');
+        const mm = String(minutes).padStart(2, '0');
+        const ss = String(seconds).padStart(2, '0');
+        if (el) el.textContent = `${{hh}}:${{mm}}:${{ss}}`;
+      }}
+      updateCountdown();
+      setInterval(updateCountdown, 1000);
+    </script>
+    """
 
 
 def render_level_selection_chart(df: pd.DataFrame) -> str:
@@ -151,14 +192,6 @@ style = f"""
 .stApp {{ background: linear-gradient(180deg, #ffffff 0%, {C_BG} 42%, #edf4f6 100%); }}
 .block-container {{ max-width: 1180px; padding-top: 1.1rem; padding-bottom: 2rem; }}
 #MainMenu, footer, header {{ visibility: hidden; }}
-.hero {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 55%, {C_PRIMARY_LIGHT} 100%); border-radius: 30px; padding: 1.65rem 1.8rem 1.55rem; box-shadow: 0 22px 44px rgba(0,74,95,.22); color: white; position: relative; overflow: hidden; }}
-.hero::before {{ content:""; position:absolute; width:260px; height:260px; right:-60px; top:-65px; background:radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%); }}
-.hero::after {{ content:""; position:absolute; width:220px; height:220px; left:-30px; bottom:-70px; background:radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%); }}
-.hero-top {{ font-size:.96rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; opacity:.96; }}
-.hero-title {{ font-size:2.6rem; line-height:1.08; font-weight:900; margin-top:.45rem; margin-bottom:.45rem; }}
-.hero-sub {{ font-size:1.08rem; line-height:1.48; font-weight:700; max-width:860px; opacity:.98; }}
-.badge-row {{ display:flex; flex-wrap:wrap; gap:.65rem; margin-top:1rem; }}
-.badge {{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); color:#fff; padding:.5rem .8rem; border-radius:999px; font-weight:800; font-size:.92rem; backdrop-filter: blur(2px); }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
 .card-icon {{ font-size:1.55rem; margin-bottom:.18rem; }}
 .card-title {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; margin-bottom:.2rem; }}
@@ -187,25 +220,13 @@ style = f"""
 .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top:.9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
-@media (max-width: 980px) {{ .hero-title {{ font-size:2.1rem; }} .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }} .levels-grid {{ grid-template-columns:1fr; }} }}
-@media (max-width: 640px) {{ .hero-title {{ font-size:1.75rem; }} .hero-sub {{ font-size:.98rem; }} .kpi-grid {{ grid-template-columns:1fr 1fr; gap:.65rem; }} }}
+@media (max-width: 980px) {{ .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }} .levels-grid {{ grid-template-columns:1fr; }} }}
+@media (max-width: 640px) {{ .kpi-grid {{ grid-template-columns:1fr 1fr; gap:.65rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
 
-st.markdown(f"""
-<div class='hero'>
-  <div class='hero-top'>Bienvenid@s</div>
-  <div class='hero-title'>VSDTI Porra Mundial 2026</div>
-  <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… y <b>ya tenemos {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
-  <div class='badge-row'>
-    <div class='badge'>⚽ Mundial 2026</div>
-    <div class='badge'>🔥 {total_porras} porras realizadas</div>
-    <div class='badge'>💰 {recaudacion} € en premios</div>
-    <div class='badge'>⏰ Cierre: {escape_html(DEADLINE_TEXT)}</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+components.html(render_hero(total_porras, recaudacion), height=360, scrolling=False)
 
 st.markdown(f"""
 <div class='kpi-grid'>
