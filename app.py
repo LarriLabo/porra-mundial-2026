@@ -259,6 +259,7 @@ def render_participant_selection_block(df: pd.DataFrame) -> str:
     records, levels = get_bet_records(df)
     if not records or not levels:
         return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay suficientes registros para mostrar la selección de participantes.</div></div>"
+    records = sorted(records, key=lambda r: str(r.get('participante', '')).strip().casefold())
     parts = ["<div class='participant-grid'>"]
     for rec in records:
         name = escape_html(rec['participante'])
