@@ -29,7 +29,6 @@ GROUP_STAGE_PERIODS = [{'date_range': '11–17 junio', 'title': 'Primera oleada 
 CALENDAR_TAIL_PHASES = [{'phase': 'Dieciseisavos', 'icon': '⚔️', 'range': '28 junio–3 julio', 'summary': 'Empieza la eliminación directa'}, {'phase': 'Octavos de final', 'icon': '🎯', 'range': '4–7 julio', 'summary': 'Quedan 16 selecciones'}, {'phase': 'Cuartos de final', 'icon': '💥', 'range': '9–11 julio', 'summary': 'Ya solo quedan 8'}, {'phase': 'Semifinales', 'icon': '🔥', 'range': '14–15 julio', 'summary': 'La antesala de la final'}, {'phase': 'Desenlace', 'icon': '🏆', 'range': '18–19 julio', 'summary': 'Tercer puesto y gran final'}]
 TIMELINE_NODES = [{'phase': 'Apertura', 'icon': '🏁', 'range': '11 junio'}, {'phase': 'Grupos', 'icon': '🗂️', 'range': '11–27 junio'}, {'phase': '1/32', 'icon': '⚔️', 'range': '28 junio–3 julio'}, {'phase': 'Octavos', 'icon': '🎯', 'range': '4–7 julio'}, {'phase': 'Cuartos', 'icon': '💥', 'range': '9–11 julio'}, {'phase': 'Semis', 'icon': '🔥', 'range': '14–15 julio'}, {'phase': 'Final', 'icon': '🏆', 'range': '18–19 julio'}]
 
-
 def make_download_url(url: str) -> str:
     m = re.search(r"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9_-]+)", url)
     return f"https://docs.google.com/spreadsheets/d/{m.group(1)}/export?format=xlsx" if m else url
@@ -44,12 +43,9 @@ def load_sheet(sheet_name: str, header=0):
     data = download_bytes(make_download_url(SOURCE_URL))
     return pd.read_excel(io.BytesIO(data), sheet_name=sheet_name, header=header, engine='openpyxl')
 
-
 def escape_html(text):
     text = str(text)
-    return (text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            .replace('"', '&quot;').replace("'", '&#39;'))
-
+    return (text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#39;'))
 
 def _find_table_start(row_values, labels, occurrence='first'):
     norm = [str(x).strip().upper() if pd.notna(x) else '' for x in row_values]
@@ -61,7 +57,6 @@ def _find_table_start(row_values, labels, occurrence='first'):
     if not matches:
         return None
     return matches[-1] if occurrence == 'last' else matches[0]
-
 
 def parse_classification(raw: pd.DataFrame) -> pd.DataFrame:
     header_row = raw.iloc[1].tolist()
@@ -77,15 +72,12 @@ def parse_classification(raw: pd.DataFrame) -> pd.DataFrame:
     ranking['POS_ORDENADA'] = ranking['PUNTOS_TOTALES'].rank(method='min', ascending=False).astype(int)
     return ranking
 
-
 def get_levels(df: pd.DataFrame):
     cols = [c for c in df.columns if str(c).strip().lower().startswith('nivel')]
     return sorted(cols, key=lambda x: int(re.search(r'(\d+)', str(x)).group(1)) if re.search(r'(\d+)', str(x)) else 999)
 
-
 def count_entries(df: pd.DataFrame) -> int:
     return int(df['PARTICIPANTE'].dropna().shape[0]) if 'PARTICIPANTE' in df.columns else 0
-
 
 def get_bet_records(df: pd.DataFrame):
     levels = get_levels(df)
@@ -95,11 +87,7 @@ def get_bet_records(df: pd.DataFrame):
     work['PARTICIPANTE'] = work['PARTICIPANTE'].astype(str).str.strip()
     for level in levels:
         work[level] = work[level].fillna('').astype(str).str.strip()
-    return [
-        {'participante': row['PARTICIPANTE'], 'choices': {level: row[level] for level in levels}}
-        for _, row in work[['PARTICIPANTE'] + levels].iterrows()
-    ], levels
-
+    return [{'participante': row['PARTICIPANTE'], 'choices': {level: row[level] for level in levels}} for _, row in work[['PARTICIPANTE'] + levels].iterrows()], levels
 
 def analyze_similarity(df):
     records, levels = get_bet_records(df)
@@ -125,29 +113,15 @@ def analyze_similarity(df):
             pair_scores.append({'a': a['participante'], 'b': b['participante'], 'matches': matches, 'diff_levels': diff})
     pair_scores.sort(key=lambda x: (-x['matches'], x['a'], x['b']))
     non_exact = [p for p in pair_scores if p['matches'] < len(levels)]
-    return {
-        'exact_groups': exact_groups,
-        'top_pairs': non_exact[:5],
-        'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)),
-        'max_matches': pair_scores[0]['matches'] if pair_scores else 0,
-        'levels_count': len(levels),
-        'participaciones': len(records)
-    }
-
+    return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records)}
 
 def render_similarity_block(ins):
-    lc = ins.get('levels_count', 0)
-    eg = ins.get('exact_groups', [])
-    tp = ins.get('top_pairs', [])
-    ncp = ins.get('near_clone_pairs', 0)
-    mm = ins.get('max_matches', 0)
-    part = ins.get('participaciones', 0)
+    lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0)
     if eg:
         html = ["<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>Sí, ha habido porras espejo.</b></div>"]
         for dup in eg[:4]:
             html.append(f"<div class='affinity-item'><b>{dup['repeticiones']} personas</b>: {', '.join(escape_html(p) for p in dup['participantes'])}</div>")
-        html.append("</div>")
-        final = ''.join(html)
+        html.append("</div>"); final = ''.join(html)
     else:
         final = "<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>No ha habido porras espejo.</b></div><div class='affinity-item'>No se han detectado apuestas 100% idénticas entre participantes.</div></div>"
     if tp:
@@ -155,19 +129,13 @@ def render_similarity_block(ins):
         for pair in tp:
             diff = ', '.join(escape_html(x) for x in pair['diff_levels']) if pair['diff_levels'] else 'Ningún nivel'
             html.append(f"<div class='affinity-item'><b>{escape_html(pair['a'])} · {escape_html(pair['b'])}</b><br>Coinciden en <b>{pair['matches']}/{lc}</b> niveles. <span class='affinity-muted'>Difieren en: {diff}</span></div>")
-        html.append("</div>")
-        pair = ''.join(html)
+        html.append("</div>"); pair = ''.join(html)
     else:
         pair = "<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>No hay suficientes datos para detectar afinidades destacables entre porras.</div></div>"
     return f"<div class='analysis-box'><div class='affinity-stats'><div class='affinity-stat'><div class='affinity-stat-value'>{part}</div><div class='affinity-stat-label'>Participaciones</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{len(eg)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{ncp}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{mm}/{lc}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div></div><div class='affinity-grid'>{final}{pair}</div></div>"
 
-
 def render_match_cards(matches):
-    return "<div class='match-list'>" + ''.join([
-        f"<div class='match-card'><div class='match-card-date'>{escape_html(m['date'])}</div><div class='match-card-main'><div class='match-card-time'>{escape_html(m['time'])} h</div><div class='match-card-title'>{escape_html(m['match'])}</div><div class='match-card-group'>{escape_html(m['group'])}</div></div></div>"
-        for m in matches
-    ]) + "</div>"
-
+    return "<div class='match-list'>" + ''.join([f"<div class='match-card'><div class='match-card-date'>{escape_html(m['date'])}</div><div class='match-card-main'><div class='match-card-time'>{escape_html(m['time'])} h</div><div class='match-card-title'>{escape_html(m['match'])}</div><div class='match-card-group'>{escape_html(m['group'])}</div></div></div>" for m in matches]) + "</div>"
 
 def render_group_stage_periods_html():
     parts = ["<div class='group-stage-accordion'>"]
@@ -176,7 +144,6 @@ def render_group_stage_periods_html():
         parts.append(f"<details class='period-details'><summary class='period-summary'>{escape_html(title)}</summary><div class='period-body'><div class='phase-head-summary' style='margin:.1rem 0 .5rem 0;'>{escape_html(p['subtitle'])}</div>{render_match_cards(p['matches'])}</div></details>")
     parts.append("</div>")
     return ''.join(parts)
-
 
 def render_tail_phase_cards():
     colors = [C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK]
@@ -187,7 +154,6 @@ def render_tail_phase_cards():
     parts.append("</div>")
     return ''.join(parts)
 
-
 def render_calendar_content():
     colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
     parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026</div><div class='calendar-timeline'>"]
@@ -197,7 +163,6 @@ def render_calendar_content():
     parts.append("</div></div>")
     return ''.join(parts) + render_group_stage_periods_html() + render_tail_phase_cards()
 
-
 def render_level_selection_chart(df):
     levels = [lvl for lvl in get_levels(df) if lvl in LEVEL_TEAMS] or list(LEVEL_TEAMS.keys())
     total = max(count_entries(df), 1)
@@ -205,8 +170,7 @@ def render_level_selection_chart(df):
     for level in levels:
         teams = LEVEL_TEAMS.get(level, [])
         series = df[level].dropna().astype(str).str.strip() if level in df.columns else pd.Series(dtype=str)
-        counts = series.value_counts()
-        color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
+        counts = series.value_counts(); color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
         teams_text = ' · '.join(escape_html(t) for t in teams)
         parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'><div class='level-name'>{escape_html(level)}</div><div class='level-teams'>({teams_text})</div></div>")
         for team, pct in sorted([(team, round((int(counts.get(team, 0))/total)*100, 1)) for team in teams], key=lambda x: (-x[1], x[0])):
@@ -214,7 +178,6 @@ def render_level_selection_chart(df):
         parts.append("</div>")
     parts.append("</div>")
     return ''.join(parts)
-
 
 def render_participant_selection_block(df):
     records, levels = get_bet_records(df)
@@ -226,14 +189,11 @@ def render_participant_selection_block(df):
         name = escape_html(rec['participante'])
         parts.append(f"<details class='participant-details'><summary class='participant-summary'>{name}</summary><div class='participant-body'><div class='participant-picks'>")
         for level in levels:
-            tv = rec['choices'].get(level, '')
-            team = escape_html(tv) if tv else '—'
-            color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
+            tv = rec['choices'].get(level, ''); team = escape_html(tv) if tv else '—'; color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
             parts.append(f"<div class='pick-chip'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span></div>")
         parts.append("</div></div></details>")
     parts.append("</div>")
     return ''.join(parts)
-
 
 def render_classification_block(df):
     if df is None or df.empty:
@@ -242,22 +202,13 @@ def render_classification_block(df):
     for _, row in df.iterrows():
         pos = int(row['POS_ORDENADA']) if pd.notna(row['POS_ORDENADA']) else '-'
         badge_class = 'gold' if pos == 1 else 'silver' if pos == 2 else 'bronze' if pos == 3 else ''
-        name = escape_html(row['PARTICIPANTE'])
-        points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
-        parts.append(
-            f"<div class='classification-row'>"
-            f"<div class='classification-pos {badge_class}'>{pos}</div>"
-            f"<div class='classification-name'>{name}</div>"
-            f"<div class='classification-points-wrap'><div class='classification-points-label'>Puntos</div><div class='classification-points'>{points}</div></div>"
-            f"</div>"
-        )
+        name = escape_html(row['PARTICIPANTE']); points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
+        parts.append(f"<div class='classification-row'><div class='classification-pos {badge_class}'>{pos}</div><div class='classification-name'>{name}</div><div class='classification-points-wrap'><div class='classification-points-label'>Puntos</div><div class='classification-points'>{points}</div></div></div>")
     parts.append("</div>")
     return ''.join(parts)
 
-
 def refresh_data():
-    st.cache_data.clear()
-    st.rerun()
+    st.cache_data.clear(); st.rerun()
 
 try:
     resumen_df = load_sheet('Resumen de Apuestas', header=0)
@@ -270,12 +221,7 @@ try:
     chart_html = render_level_selection_chart(resumen_df)
     total_porras = count_entries(resumen_df)
 except Exception:
-    classification_html = ''
-    participant_selection_html = ''
-    calendar_html = render_calendar_content()
-    similarity_html = ''
-    chart_html = ''
-    total_porras = 0
+    classification_html = ''; participant_selection_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -339,12 +285,10 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 @media (max-width:640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:56px 1fr 92px; gap:.7rem; padding:.78rem .8rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-name {{ font-size:.95rem; }} .classification-points {{ font-size:1.25rem; }} .hero-logo-slot {{ width:90px; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
 </style>
 """
-
 st.markdown(style, unsafe_allow_html=True)
-
 st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Reparto de premios</div><div class='premios-sub'>Si hubiera empate en el <b>1er puesto</b>, el premio se repartiría entre las personas empatadas y <b>no habría reparto al 2º puesto</b>.</div><div class='premios-grid'><div class='premio-card premio-card--oro'><div class='premio-icon'>🏆</div><div class='premio-pos'>1er puesto</div><div class='premio-amount'>{premio_ganadora:.2f} €</div><div class='premio-note'>La copa grande, la gloria eterna y el <b>70%</b> del bote.</div></div><div class='premio-card premio-card--plata'><div class='premio-icon'>🏆</div><div class='premio-pos'>2º puesto</div><div class='premio-amount'>{premio_segunda:.2f} €</div><div class='premio-note'>La copa de plata y un meritorio <b>30%</b> del bote.</div></div></div></div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Selección de participantes", "Calendario", "Radar de afinidades entre participantes", "Radiografía de las apuestas realizadas"])
+tabs = st.tabs(["Clasificación", "Selección de participantes", "Calendario", "Curiosidades de participaciones", "Porcentaje de selección de equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
