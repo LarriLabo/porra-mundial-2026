@@ -76,6 +76,16 @@ def escape_html(text):
                 .replace("'", '&#39;'))
 
 
+def unique_in_order(series: pd.Series):
+    seen = set()
+    ordered = []
+    for item in series.dropna().astype(str).str.strip().tolist():
+        if item and item not in seen:
+            seen.add(item)
+            ordered.append(item)
+    return ordered
+
+
 def render_level_selection_chart(df: pd.DataFrame) -> str:
     levels = get_levels(df)
     if not levels:
@@ -86,8 +96,11 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
         if series.empty:
             continue
         percentages = (series.value_counts(normalize=True) * 100).round(1).head(TOP_TEAMS_PER_LEVEL)
+        teams_in_level = unique_in_order(df[level])
+        teams_text = ' · '.join(escape_html(team) for team in teams_in_level)
+        title_text = f"{escape_html(level)} ({teams_text})" if teams_text else escape_html(level)
         color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
-        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{escape_html(level)}</div>")
+        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_text}</div>")
         for idx, pct in enumerate(percentages.tolist(), start=1):
             pct_value = float(pct)
             pct_str = f"{pct_value:.1f}%"
@@ -169,7 +182,7 @@ style = f"""
 .dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
 .levels-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:.25rem; }}
 .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
-.level-card-title {{ font-weight:900; font-size:1.05rem; margin-bottom:.6rem; }}
+.level-card-title {{ font-weight:900; font-size:1rem; margin-bottom:.6rem; line-height:1.35; }}
 .bar-row {{ margin-bottom:.58rem; }}
 .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }}
 .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }}
