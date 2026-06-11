@@ -2,9 +2,10 @@
 import io
 import re
 import urllib.request
+from itertools import combinations
+
 import pandas as pd
 import streamlit as st
-from itertools import combinations
 
 st.set_page_config(page_title="Versia Servicios Distribuidos · Porra Mundial 2026", page_icon="🌍", layout="wide")
 
@@ -78,42 +79,6 @@ def escape_html(text):
                 .replace('>', '&gt;')
                 .replace('"', '&quot;')
                 .replace("'", '&#39;'))
-
-
-def render_level_selection_chart(df: pd.DataFrame) -> str:
-    levels = [lvl for lvl in get_levels(df) if lvl in LEVEL_TEAMS]
-    if not levels:
-        levels = list(LEVEL_TEAMS.keys())
-
-    total_entries = max(count_entries(df), 1)
-    parts = ["<div class='levels-grid'>"]
-    for level in levels:
-        teams = LEVEL_TEAMS.get(level, [])
-        series = df[level].dropna().astype(str).str.strip() if level in df.columns else pd.Series(dtype=str)
-        counts = series.value_counts()
-        percentages = []
-        for team in teams:
-            pct = round((int(counts.get(team, 0)) / total_entries) * 100, 1)
-            percentages.append((team, pct))
-        percentages = sorted(percentages, key=lambda x: (-x[1], x[0]))
-        color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
-        teams_text = ' · '.join(escape_html(team) for team in teams)
-        title_html = (
-            f"<div class='level-name'>{escape_html(level)}</div><div class='level-teams'>({teams_text})</div>"
-            if teams_text else f"<div class='level-name'>{escape_html(level)}</div>"
-        )
-        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_html}</div>")
-        for team_name, pct_value in percentages:
-            pct_str = f"{pct_value:.1f}%"
-            parts.append(
-                f"<div class='bar-row'>"
-                f"<div class='bar-top'><span class='bar-team'>{escape_html(team_name)}</span><span class='bar-pct'>{pct_str}</span></div>"
-                f"<div class='bar-track'><div class='bar-fill' style='width:{min(max(pct_value,0),100)}%; background:{color};'></div></div>"
-                f"</div>"
-            )
-        parts.append("</div>")
-    parts.append("</div>")
-    return ''.join(parts)
 
 
 def get_bet_records(df: pd.DataFrame):
@@ -205,27 +170,16 @@ def render_similarity_block(insights: dict) -> str:
     near_clone_pairs = insights.get('near_clone_pairs', 0)
     max_matches = insights.get('max_matches', 0)
 
-    parts = [
-        "<div class='section-title'>Radar de afinidades entre participantes</div>",
-        "<div class='analysis-box'>",
-        "<div class='affinity-summary'>Hemos comparado las selecciones de todas las personas apuntadas para detectar porras espejo, duplas casi calcadas y parecidos sospechosamente altos. Aquí está el salseo bueno.</div>",
-        "<div class='affinity-stats'>",
-        f"<div class='affinity-stat'><div class='affinity-stat-value'>{len(exact_groups)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div>",
-        f"<div class='affinity-stat'><div class='affinity-stat-value'>{near_clone_pairs}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div>",
-        f"<div class='affinity-stat'><div class='affinity-stat-value'>{max_matches}/{levels_count}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div>",
-        "</div>",
-        "<div class='affinity-grid'>"
-    ]
-
     if exact_groups:
-        exact_html = ["<div class='affinity-card'><div class='affinity-card-title'>Porras espejo</div>"]
+        final_result_html = ["<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div>"]
+        final_result_html.append("<div class='affinity-item'><b>Sí, ha habido porras espejo.</b></div>")
         for dup in exact_groups[:4]:
             participantes = ', '.join(escape_html(p) for p in dup['participantes'])
-            exact_html.append(f"<div class='affinity-item'><b>{dup['repeticiones']} personas</b>: {participantes}</div>")
-        exact_html.append("</div>")
-        parts.append(''.join(exact_html))
+            final_result_html.append(f"<div class='affinity-item'><b>{dup['repeticiones']} personas</b>: {participantes}</div>")
+        final_result_html.append("</div>")
+        final_result_card = ''.join(final_result_html)
     else:
-        parts.append("<div class='affinity-card'><div class='affinity-card-title'>Porras espejo</div><div class='affinity-item'>De momento, no hay apuestas 100% idénticas. Cada cual va con su librillo… por ahora.</div></div>")
+        final_result_card = "<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>No ha habido porras espejo.</b></div><div class='affinity-item'>No se han detectado apuestas 100% idénticas entre participantes.</div></div>"
 
     if top_pairs:
         pair_html = ["<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div>"]
@@ -237,24 +191,73 @@ def render_similarity_block(insights: dict) -> str:
                 f" <span class='affinity-muted'>Difieren en: {diff_text}</span></div>"
             )
         pair_html.append("</div>")
-        parts.append(''.join(pair_html))
+        pair_card = ''.join(pair_html)
     else:
-        parts.append("<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>Todavía no hay suficientes datos para detectar afinidades curiosas.</div></div>")
+        pair_card = "<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>No hay suficientes datos para detectar afinidades destacables entre porras.</div></div>"
 
-    parts.append("</div></div>")
+    return (
+        "<div class='section-title'>Radar de afinidades entre participantes</div>"
+        "<div class='analysis-box'>"
+        "<div class='affinity-summary'>La inscripción ya se ha cerrado. Ahora toca mirar qué porras han ido por libre, cuáles se han calcado y qué parejas han rozado el déjà vu futbolero.</div>"
+        "<div class='affinity-stats'>"
+        f"<div class='affinity-stat'><div class='affinity-stat-value'>{len(exact_groups)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div>"
+        f"<div class='affinity-stat'><div class='affinity-stat-value'>{near_clone_pairs}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div>"
+        f"<div class='affinity-stat'><div class='affinity-stat-value'>{max_matches}/{levels_count}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div>"
+        "</div>"
+        "<div class='affinity-grid'>" + final_result_card + pair_card + "</div>"
+        "</div>"
+    )
+
+
+def render_level_selection_chart(df: pd.DataFrame) -> str:
+    levels = [lvl for lvl in get_levels(df) if lvl in LEVEL_TEAMS]
+    if not levels:
+        levels = list(LEVEL_TEAMS.keys())
+
+    total_entries = max(count_entries(df), 1)
+    parts = ["<div class='levels-grid'>"]
+    for level in levels:
+        teams = LEVEL_TEAMS.get(level, [])
+        series = df[level].dropna().astype(str).str.strip() if level in df.columns else pd.Series(dtype=str)
+        counts = series.value_counts()
+        percentages = []
+        for team in teams:
+            pct = round((int(counts.get(team, 0)) / total_entries) * 100, 1)
+            percentages.append((team, pct))
+        percentages = sorted(percentages, key=lambda x: (-x[1], x[0]))
+        color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
+        teams_text = ' · '.join(escape_html(team) for team in teams)
+        title_html = (
+            f"<div class='level-name'>{escape_html(level)}</div><div class='level-teams'>({teams_text})</div>"
+            if teams_text else f"<div class='level-name'>{escape_html(level)}</div>"
+        )
+        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_html}</div>")
+        for team_name, pct_value in percentages:
+            pct_str = f"{pct_value:.1f}%"
+            parts.append(
+                f"<div class='bar-row'>"
+                f"<div class='bar-top'><span class='bar-team'>{escape_html(team_name)}</span><span class='bar-pct'>{pct_str}</span></div>"
+                f"<div class='bar-track'><div class='bar-fill' style='width:{min(max(pct_value,0),100)}%; background:{color};'></div></div>"
+                f"</div>"
+            )
+        parts.append("</div>")
+    parts.append("</div>")
     return ''.join(parts)
+
+
+def refresh_data():
+    st.cache_data.clear()
+    st.rerun()
 
 
 try:
     resumen_df = load_resumen()
     total_porras = count_entries(resumen_df)
     chart_html = render_level_selection_chart(resumen_df)
-    duplicate_bets = find_duplicate_bets(resumen_df)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
 except Exception:
     total_porras = 0
     chart_html = ""
-    duplicate_bets = []
     similarity_html = ""
 
 style = f"""
@@ -285,9 +288,6 @@ style = f"""
 .affinity-item {{ color:{C_GRAY_DARK}; font-size:.92rem; line-height:1.45; font-weight:600; margin-bottom:.55rem; }}
 .affinity-item:last-child {{ margin-bottom:0; }}
 .affinity-muted {{ color:{C_GRAY}; }}
-.dup-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-left:6px solid {C_SECONDARY}; border-radius:18px; padding:.9rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); margin-bottom:.7rem; }}
-.dup-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.18rem; }}
-.dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
 .levels-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:.25rem; }}
 .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
 .level-card-title {{ margin-bottom:.6rem; line-height:1.25; }}
@@ -300,6 +300,9 @@ style = f"""
 .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top:.9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
+.refresh-wrap {{ display:flex; justify-content:center; margin-top:1.2rem; }}
+.stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }}
+.stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width: 980px) {{ .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .levels-grid, .affinity-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} }}
 @media (max-width: 640px) {{ .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} }}
 </style>
@@ -315,14 +318,14 @@ st.markdown("""
 
 st.markdown(f"""
 <div class='card' style='margin-top:1rem;'>
-  <div class='card-text'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… hay <b>{total_porras} porras registradas</b>. Si alguien falta por apuntarse, que no se despiste: luego llegan los goles, los aciertos... y las lamentaciones. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
+  <div class='card-text'>La inscripción ya se ha cerrado. Con <b>{total_porras} porras registradas</b>, ahora toca comparar pronósticos, descubrir coincidencias y ver quién se la ha jugado de verdad en esta edición.</div>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class='callout'>
-  <div class='callout-title'>Que empiece el juego y el movimiento de gallinas</div>
-  <div class='callout-text'>Aquí no hay Champions del Excel, PowerBi ni gurús invencibles: hay compis con fe ciega, pronósticos valientes y mucho comentario de pasillo. Lo bonito será vacilar con cariño, celebrar los aciertos improbables y sobrevivir con dignidad cuando falle el “favoritísimo”. Y aviso a navegantes: la IA podrá calcular mucho… pero no siempre gana. A veces el instinto del café (soluble) de media mañana también juega su partido.</div>
+  <div class='callout-title'>Empieza la comparativa de porras</div>
+  <div class='callout-text'>Se acabó el tiempo de apuntarse. Ahora llega la parte divertida: comparar apuestas, detectar duplas sospechosamente parecidas y empezar con el pique sano antes de que ruede el balón.</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -335,13 +338,6 @@ if chart_html:
 else:
     st.info("Todavía no hay datos suficientes para generar el resumen de porcentajes por nivel.")
 
-st.markdown("<div class='section-title'>¿Hay apuestas idénticas?</div>", unsafe_allow_html=True)
-if duplicate_bets:
-    st.markdown(f"<div class='analysis-box'><div class='dup-text'>Sí, ya hay <b>{len(duplicate_bets)}</b> combinación(es) de equipos repetida(s). Para no revelar selecciones concretas, aquí solo se muestra qué participantes han coincidido al 100% en su apuesta.</div></div>", unsafe_allow_html=True)
-    for dup in duplicate_bets:
-        participantes = ', '.join(escape_html(p) for p in dup['participantes'])
-        st.markdown(f"<div class='dup-card'><div class='dup-title'>{dup['repeticiones']} apuestas idénticas</div><div class='dup-text'><b>Participantes que coinciden:</b> {participantes}</div></div>", unsafe_allow_html=True)
-else:
-    st.markdown("<div class='analysis-box'><div class='dup-text'>De momento, no hay apuestas idénticas en la selección completa de equipos. Cada persona está tirando por su propio camino… al menos por ahora.</div></div>", unsafe_allow_html=True)
-
-st.markdown("<div class='footer-note'>Buen rollo, alguna pulla elegante y mucho fútbol: ese es el espíritu.</div>", unsafe_allow_html=True)
+st.markdown("<div class='refresh-wrap'></div>", unsafe_allow_html=True)
+if st.button("Actualizar"):
+    refresh_data()
