@@ -248,9 +248,10 @@ style = f"""
 .premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
 .premio-card {{ border-radius:22px; padding:1rem; text-align:center; overflow:hidden; }} .premio-card--oro {{ background:linear-gradient(135deg, rgba(241,200,49,.18) 0%, rgba(242,142,0,.15) 100%); border:1px solid rgba(242,142,0,.25); }} .premio-card--plata {{ background:linear-gradient(135deg, rgba(112,111,111,.12) 0%, rgba(156,155,155,.16) 100%); border:1px solid rgba(112,111,111,.2); }}
 .premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }} .premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }} .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }} .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
-[data-baseweb="tab-list"] {{ gap:.45rem; margin-top:1rem; margin-bottom:.55rem; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:thin; }}
-[data-baseweb="tab"] {{ background:rgba(50,125,142,.035)!important; border:1px solid rgba(50,125,142,.14)!important; border-radius:999px!important; padding:.55rem 1rem!important; min-height:auto!important; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
-[data-baseweb="tab"] p {{ color:{C_PRIMARY_DARK}!important; font-weight:900!important; font-size:1rem!important; line-height:1.2!important; }}
+[data-baseweb="tab-list"] {{ gap:.28rem; margin-top:1rem; margin-bottom:.55rem; flex-wrap:nowrap; overflow-x:hidden; scrollbar-width:none; }}
+[data-baseweb="tab-list"]::-webkit-scrollbar {{ display:none !important; }}
+[data-baseweb="tab"] {{ background:rgba(50,125,142,.035)!important; border:1px solid rgba(50,125,142,.14)!important; border-radius:999px!important; padding:.46rem .52rem!important; min-height:auto!important; min-width:0!important; flex:1 1 0!important; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
+[data-baseweb="tab"] p {{ color:{C_PRIMARY_DARK}!important; font-weight:900!important; font-size:.86rem!important; line-height:1.08!important; text-align:center!important; white-space:normal!important; }}
 button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, rgba(0,74,95,.12) 0%, rgba(100,174,188,.14) 100%)!important; border-color:rgba(50,125,142,.30)!important; }}
 [data-baseweb="tab-highlight"] {{ display:none!important; }}
 .classification-board {{ display:flex; flex-direction:column; gap:.7rem; margin-top:.2rem; }}
@@ -288,7 +289,7 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Reparto de premios</div><div class='premios-sub'>Si hubiera empate en el <b>1er puesto</b>, el premio se repartiría entre las personas empatadas y <b>no habría reparto al 2º puesto</b>.</div><div class='premios-grid'><div class='premio-card premio-card--oro'><div class='premio-icon'>🏆</div><div class='premio-pos'>1er puesto</div><div class='premio-amount'>{premio_ganadora:.2f} €</div><div class='premio-note'>La copa grande, la gloria eterna y el <b>70%</b> del bote.</div></div><div class='premio-card premio-card--plata'><div class='premio-icon'>🏆</div><div class='premio-pos'>2º puesto</div><div class='premio-amount'>{premio_segunda:.2f} €</div><div class='premio-note'>La copa de plata y un meritorio <b>30%</b> del bote.</div></div></div></div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Selección de participantes", "Calendario", "Curiosidades de participaciones", "Porcentaje de selección de equipos"])
+tabs = st.tabs(["Clasificación", "Participantes", "Calendario", "Curiosidades", "Selección equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
