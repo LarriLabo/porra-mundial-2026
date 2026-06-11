@@ -47,13 +47,6 @@ def escape_html(text):
     text = str(text)
     return (text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#39;'))
 
-def normalize_person_key(value: str) -> str:
-    return re.sub(r'\s+', ' ', str(value).strip()).casefold()
-
-def normalize_level_key(value: str) -> str:
-    m = re.search(r'(\d+)', str(value))
-    return f"Nivel {int(m.group(1))}" if m else str(value).strip()
-
 def _find_table_start(row_values, labels, occurrence='first'):
     norm = [str(x).strip().upper() if pd.notna(x) else '' for x in row_values]
     labels_norm = [x.strip().upper() for x in labels]
@@ -78,66 +71,6 @@ def parse_classification(raw: pd.DataFrame) -> pd.DataFrame:
     ranking = ranking.sort_values(['PUNTOS_TOTALES', 'PARTICIPANTE'], ascending=[False, True]).reset_index(drop=True)
     ranking['POS_ORDENADA'] = ranking['PUNTOS_TOTALES'].rank(method='dense', ascending=False).astype(int)
     return ranking
-
-def parse_participant_level_points(raw: pd.DataFrame) -> dict:
-    best_row = None
-    best_score = -1
-    participant_col = None
-    level_cols = {}
-
-    scan_rows = min(len(raw), 60)
-    for ridx in range(scan_rows):
-        row = raw.iloc[ridx].tolist()
-        norm = [str(x).strip().upper() if pd.notna(x) else '' for x in row]
-        if 'PARTICIPANTE' not in norm:
-            continue
-        local_participant_col = norm.index('PARTICIPANTE')
-        local_level_cols = {}
-        for cidx, cell in enumerate(norm):
-            m = re.search(r'NIVEL\s*([1-8])', cell)
-            if m:
-                local_level_cols[f"Nivel {int(m.group(1))}"] = cidx
-        score = len(local_level_cols)
-        if score > best_score or (score == best_score and ridx > (best_row if best_row is not None else -1)):
-            best_score = score
-            best_row = ridx
-            participant_col = local_participant_col
-            level_cols = local_level_cols
-
-    if best_row is None or participant_col is None or not level_cols:
-        return {}
-
-    result = {}
-    blank_streak = 0
-    for ridx in range(best_row + 1, len(raw)):
-        row = raw.iloc[ridx]
-        participant = row.iloc[participant_col] if participant_col < len(row) else None
-        if pd.isna(participant) or str(participant).strip() == '':
-            blank_streak += 1
-            if blank_streak >= 6:
-                break
-            continue
-        blank_streak = 0
-        participant_name = str(participant).strip()
-        pkey = normalize_person_key(participant_name)
-        result[pkey] = {}
-        for level, cidx in level_cols.items():
-            value = row.iloc[cidx] if cidx < len(row) else None
-            if pd.isna(value) or str(value).strip() == '':
-                result[pkey][normalize_level_key(level)] = ''
-                continue
-            num = pd.to_numeric(value, errors='coerce')
-            if pd.notna(num):
-                parsed = int(num) if float(num).is_integer() else round(float(num), 1)
-                result[pkey][normalize_level_key(level)] = parsed
-            else:
-                m = re.search(r'-?\d+(?:[.,]\d+)?', str(value))
-                if m:
-                    parsed = float(m.group(0).replace(',', '.'))
-                    result[pkey][normalize_level_key(level)] = int(parsed) if parsed.is_integer() else round(parsed, 1)
-                else:
-                    result[pkey][normalize_level_key(level)] = ''
-    return result
 
 def get_levels(df: pd.DataFrame):
     cols = [c for c in df.columns if str(c).strip().lower().startswith('nivel')]
@@ -246,25 +179,18 @@ def render_level_selection_chart(df):
     parts.append("</div>")
     return ''.join(parts)
 
-def render_participant_selection_block(df, participant_level_points=None):
+def render_participant_selection_block(df):
     records, levels = get_bet_records(df)
-    participant_level_points = participant_level_points or {}
     if not records or not levels:
         return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay suficientes registros para mostrar la selección de participantes.</div></div>"
     records = sorted(records, key=lambda r: str(r.get('participante', '')).strip().casefold())
     parts = ["<div class='participant-accordion'>"]
     for rec in records:
-        raw_name = str(rec['participante']).strip()
-        name = escape_html(raw_name)
-        pts_by_level = participant_level_points.get(normalize_person_key(raw_name), {})
+        name = escape_html(rec['participante'])
         parts.append(f"<details class='participant-details'><summary class='participant-summary'>{name}</summary><div class='participant-body'><div class='participant-picks'>")
         for level in levels:
-            tv = rec['choices'].get(level, '')
-            team = escape_html(tv) if tv else '—'
-            color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
-            pts_val = pts_by_level.get(normalize_level_key(level), '')
-            pts_html = escape_html(pts_val) if pts_val != '' else ''
-            parts.append(f"<div class='pick-chip'><span class='pick-main'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span></span><span class='pick-points'>{pts_html}</span></div>")
+            tv = rec['choices'].get(level, ''); team = escape_html(tv) if tv else '—'; color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
+            parts.append(f"<div class='pick-chip'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span></div>")
         parts.append("</div></div></details>")
     parts.append("</div>")
     return ''.join(parts)
@@ -288,9 +214,8 @@ try:
     resumen_df = load_sheet('Resumen de Apuestas', header=0)
     puntos_raw = load_sheet('Puntos', header=None)
     classification_df = parse_classification(puntos_raw)
-    participant_level_points = parse_participant_level_points(puntos_raw)
     classification_html = render_classification_block(classification_df)
-    participant_selection_html = render_participant_selection_block(resumen_df, participant_level_points)
+    participant_selection_html = render_participant_selection_block(resumen_df)
     calendar_html = render_calendar_content()
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     chart_html = render_level_selection_chart(resumen_df)
@@ -323,10 +248,9 @@ style = f"""
 .premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
 .premio-card {{ border-radius:22px; padding:1rem; text-align:center; overflow:hidden; }} .premio-card--oro {{ background:linear-gradient(135deg, rgba(241,200,49,.18) 0%, rgba(242,142,0,.15) 100%); border:1px solid rgba(242,142,0,.25); }} .premio-card--plata {{ background:linear-gradient(135deg, rgba(112,111,111,.12) 0%, rgba(156,155,155,.16) 100%); border:1px solid rgba(112,111,111,.2); }}
 .premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }} .premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }} .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }} .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
-[data-baseweb="tab-list"] {{ gap:.28rem; margin-top:1rem; margin-bottom:.55rem; flex-wrap:nowrap; overflow-x:hidden; scrollbar-width:none; }}
-[data-baseweb="tab-list"]::-webkit-scrollbar {{ display:none !important; }}
-[data-baseweb="tab"] {{ background:rgba(50,125,142,.035)!important; border:1px solid rgba(50,125,142,.14)!important; border-radius:999px!important; padding:.46rem .52rem!important; min-height:auto!important; min-width:0!important; flex:1 1 0!important; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
-[data-baseweb="tab"] p {{ color:{C_PRIMARY_DARK}!important; font-weight:900!important; font-size:.86rem!important; line-height:1.08!important; text-align:center!important; white-space:normal!important; }}
+[data-baseweb="tab-list"] {{ gap:.45rem; margin-top:1rem; margin-bottom:.55rem; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:thin; }}
+[data-baseweb="tab"] {{ background:rgba(50,125,142,.035)!important; border:1px solid rgba(50,125,142,.14)!important; border-radius:999px!important; padding:.55rem 1rem!important; min-height:auto!important; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
+[data-baseweb="tab"] p {{ color:{C_PRIMARY_DARK}!important; font-weight:900!important; font-size:1rem!important; line-height:1.2!important; }}
 button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, rgba(0,74,95,.12) 0%, rgba(100,174,188,.14) 100%)!important; border-color:rgba(50,125,142,.30)!important; }}
 [data-baseweb="tab-highlight"] {{ display:none!important; }}
 .classification-board {{ display:flex; flex-direction:column; gap:.7rem; margin-top:.2rem; }}
@@ -355,7 +279,7 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }} .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }} .affinity-stat-value {{ color:{C_SECONDARY_DARK}; font-size:1.6rem; font-weight:900; }} .affinity-stat-label {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:800; margin-top:.28rem; line-height:1.25; }} .affinity-item {{ color:{C_GRAY_DARK}; font-size:.92rem; line-height:1.45; font-weight:600; margin-bottom:.55rem; }} .affinity-item:last-child {{ margin-bottom:0; }} .affinity-muted {{ color:{C_GRAY}; }}
 .level-card-title {{ margin-bottom:.6rem; line-height:1.25; }} .level-teams {{ font-weight:700; font-size:.84rem; color:#706F6F; margin-top:.18rem; line-height:1.35; }} .bar-row {{ margin-bottom:.58rem; }} .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }} .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }} .bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }} .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }} .bar-fill {{ height:100%; border-radius:999px; }}
 .participant-accordion {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.85rem; margin-top:.25rem; align-items:start; }} .participant-details {{ height:fit-content; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
-.pick-chip {{ display:flex; align-items:center; justify-content:space-between; gap:.55rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-main {{ display:flex; align-items:center; gap:.45rem; min-width:0; flex:1 1 auto; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; min-width:0; flex:1 1 auto; }} .pick-points {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; line-height:1; min-width:28px; text-align:right; flex:0 0 auto; padding-right:.18rem; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
+.pick-chip {{ display:flex; align-items:center; gap:.45rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width:980px) {{ .premios-grid, .levels-grid, .affinity-grid, .calendar-tail-grid, .calendar-timeline, .affinity-stats {{ grid-template-columns:1fr; }} .participant-accordion {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .classification-row {{ grid-template-columns:64px 1fr 105px; gap:.8rem; }} .timeline-node:not(:last-child)::after {{ display:none; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo-badge {{ padding:.35rem .45rem; border-radius:20px; }} .hero-logo {{ width:104px; height:104px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
 @media (max-width:640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:56px 1fr 92px; gap:.7rem; padding:.78rem .8rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-name {{ font-size:.95rem; }} .classification-points {{ font-size:1.25rem; }} .hero-logo-slot {{ width:90px; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
@@ -364,7 +288,7 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Reparto de premios</div><div class='premios-sub'>Si hubiera empate en el <b>1er puesto</b>, el premio se repartiría entre las personas empatadas y <b>no habría reparto al 2º puesto</b>.</div><div class='premios-grid'><div class='premio-card premio-card--oro'><div class='premio-icon'>🏆</div><div class='premio-pos'>1er puesto</div><div class='premio-amount'>{premio_ganadora:.2f} €</div><div class='premio-note'>La copa grande, la gloria eterna y el <b>70%</b> del bote.</div></div><div class='premio-card premio-card--plata'><div class='premio-icon'>🏆</div><div class='premio-pos'>2º puesto</div><div class='premio-amount'>{premio_segunda:.2f} €</div><div class='premio-note'>La copa de plata y un meritorio <b>30%</b> del bote.</div></div></div></div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Participantes", "Calendario", "Curiosidades", "Selección equipos"])
+tabs = st.tabs(["Clasificación", "Selección de participantes", "Calendario", "Curiosidades de participaciones", "Porcentaje de selección de equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
