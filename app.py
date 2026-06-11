@@ -2,7 +2,6 @@
 import io
 import re
 import urllib.request
-
 import pandas as pd
 import streamlit as st
 
@@ -11,7 +10,7 @@ st.set_page_config(page_title="VSDTI Porra Mundial 2026", page_icon="🌍", layo
 SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBMvHH0xI/edit?usp=drivesdk&ouid=105950533705571221592&rtpof=true&sd=true"
 CACHE_MINUTES = 5
 PRICE_PER_ENTRY = 10
-TOP_TEAMS_PER_LEVEL = 5
+TOP_TEAMS_PER_LEVEL = 6
 DEADLINE_TEXT = "11/06/2026 a las 12:00am"
 
 C_PRIMARY_DARK = "#004A5F"
@@ -81,7 +80,6 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
     levels = get_levels(df)
     if not levels:
         return ""
-
     parts = ["<div class='levels-grid'>"]
     for level in levels:
         series = df[level].dropna().astype(str).str.strip()
@@ -90,12 +88,13 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
         percentages = (series.value_counts(normalize=True) * 100).round(1).head(TOP_TEAMS_PER_LEVEL)
         color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
         parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{escape_html(level)}</div>")
-        for idx, pct in enumerate(percentages.values.tolist(), start=1):
-            pct_str = f"{float(pct):.1f}%"
+        for idx, pct in enumerate(percentages.tolist(), start=1):
+            pct_value = float(pct)
+            pct_str = f"{pct_value:.1f}%"
             parts.append(
                 f"<div class='bar-row'>"
                 f"<div class='bar-top'><span class='bar-team'>{idx}ª selección más repetida</span><span class='bar-pct'>{pct_str}</span></div>"
-                f"<div class='bar-track'><div class='bar-fill' style='width:{min(float(pct),100)}%; background:{color};'></div></div>"
+                f"<div class='bar-track'><div class='bar-fill' style='width:{min(pct_value,100)}%; background:{color};'></div></div>"
                 f"</div>"
             )
         parts.append("</div>")
@@ -109,20 +108,15 @@ def find_duplicate_bets(df: pd.DataFrame):
     levels = get_levels(df)
     if not levels:
         return []
-
     work = df.dropna(subset=['PARTICIPANTE']).copy()
     for level in levels:
         work[level] = work[level].fillna('').astype(str).str.strip()
     work['PARTICIPANTE'] = work['PARTICIPANTE'].astype(str).str.strip()
     work['combo_key'] = work[levels].agg(' || '.join, axis=1)
-
     duplicates = []
     for _, group in work.groupby('combo_key'):
         if len(group) > 1:
-            duplicates.append({
-                'participantes': group['PARTICIPANTE'].tolist(),
-                'repeticiones': int(len(group))
-            })
+            duplicates.append({'participantes': group['PARTICIPANTE'].tolist(), 'repeticiones': int(len(group))})
     duplicates.sort(key=lambda x: (-x['repeticiones'], ', '.join(x['participantes'])))
     return duplicates
 
@@ -146,50 +140,34 @@ style = f"""
 #MainMenu, footer, header {{ visibility: hidden; }}
 .hero {{
   background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 55%, {C_PRIMARY_LIGHT} 100%);
-  border-radius: 30px;
-  padding: 1.65rem 1.8rem 1.55rem;
-  box-shadow: 0 22px 44px rgba(0,74,95,.22);
-  color: white;
-  position: relative;
-  overflow: hidden;
+  border-radius: 30px; padding: 1.65rem 1.8rem 1.55rem; box-shadow: 0 22px 44px rgba(0,74,95,.22);
+  color: white; position: relative; overflow: hidden;
 }}
-.hero::before {{
-  content: "";
-  position: absolute;
-  width: 260px; height: 260px;
-  right: -60px; top: -65px;
-  background: radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%);
-}}
-.hero::after {{
-  content: "";
-  position: absolute;
-  width: 220px; height: 220px;
-  left: -30px; bottom: -70px;
-  background: radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%);
-}}
-.hero-top {{ font-size: .96rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .96; }}
-.hero-title {{ font-size: 2.6rem; line-height: 1.08; font-weight: 900; margin-top: .45rem; margin-bottom: .45rem; }}
-.hero-sub {{ font-size: 1.08rem; line-height: 1.48; font-weight: 700; max-width: 860px; opacity: .98; }}
-.badge-row {{ display:flex; flex-wrap:wrap; gap:.65rem; margin-top: 1rem; }}
-.badge {{ background: rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); color:#fff; padding:.5rem .8rem; border-radius:999px; font-weight:800; font-size:.92rem; backdrop-filter: blur(2px); }}
+.hero::before {{ content:""; position:absolute; width:260px; height:260px; right:-60px; top:-65px; background:radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%); }}
+.hero::after {{ content:""; position:absolute; width:220px; height:220px; left:-30px; bottom:-70px; background:radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%); }}
+.hero-top {{ font-size:.96rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; opacity:.96; }}
+.hero-title {{ font-size:2.6rem; line-height:1.08; font-weight:900; margin-top:.45rem; margin-bottom:.45rem; }}
+.hero-sub {{ font-size:1.08rem; line-height:1.48; font-weight:700; max-width:860px; opacity:.98; }}
+.badge-row {{ display:flex; flex-wrap:wrap; gap:.65rem; margin-top:1rem; }}
+.badge {{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); color:#fff; padding:.5rem .8rem; border-radius:999px; font-weight:800; font-size:.92rem; backdrop-filter: blur(2px); }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
 .card-icon {{ font-size:1.55rem; margin-bottom:.18rem; }}
 .card-title {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; margin-bottom:.2rem; }}
 .card-text {{ color:{C_GRAY_DARK}; font-size:.95rem; line-height:1.42; font-weight:600; }}
-.kpi-grid {{ display:grid; grid-template-columns:repeat(4, 1fr); gap:.85rem; margin-top: 1rem; }}
+.kpi-grid {{ display:grid; grid-template-columns:repeat(4, 1fr); gap:.85rem; margin-top:1rem; }}
 .kpi {{ background:white; border-radius:18px; border:1px solid rgba(50,125,142,.13); padding:.85rem .95rem; box-shadow:0 8px 18px rgba(0,0,0,.04); text-align:center; }}
 .kpi-value {{ color:{C_SECONDARY_DARK}; font-size:1.95rem; font-weight:900; line-height:1; }}
 .kpi-label {{ color:{C_PRIMARY_DARK}; font-size:.92rem; font-weight:800; margin-top:.35rem; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
 .analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .analysis-note {{ color:{C_GRAY_DARK}; font-size:.95rem; line-height:1.45; font-weight:600; margin-bottom:.75rem; }}
-.callout {{ margin-top: 1rem; background: linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding: 1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
+.callout {{ margin-top:1rem; background:linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding:1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
 .callout-title {{ font-weight:900; font-size:1.15rem; margin-bottom:.15rem; }}
 .callout-text {{ font-weight:700; font-size:.97rem; line-height:1.45; }}
 .dup-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-left:6px solid {C_SECONDARY}; border-radius:18px; padding:.9rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); margin-bottom:.7rem; }}
 .dup-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.18rem; }}
 .dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
-.levels-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top: .25rem; }}
+.levels-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:.25rem; }}
 .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
 .level-card-title {{ font-weight:900; font-size:1.05rem; margin-bottom:.6rem; }}
 .bar-row {{ margin-bottom:.58rem; }}
@@ -198,17 +176,9 @@ style = f"""
 .bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }}
 .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
 .bar-fill {{ height:100%; border-radius:999px; }}
-.footer-note {{ margin-top: .9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
-@media (max-width: 980px) {{
-  .hero-title {{ font-size: 2.1rem; }}
-  .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }}
-  .levels-grid {{ grid-template-columns:1fr; }}
-}}
-@media (max-width: 640px) {{
-  .hero-title {{ font-size: 1.75rem; }}
-  .hero-sub {{ font-size: .98rem; }}
-  .kpi-grid {{ grid-template-columns:1fr 1fr; gap:.65rem; }}
-}}
+.footer-note {{ margin-top:.9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
+@media (max-width: 980px) {{ .hero-title {{ font-size:2.1rem; }} .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }} .levels-grid {{ grid-template-columns:1fr; }} }}
+@media (max-width: 640px) {{ .hero-title {{ font-size:1.75rem; }} .hero-sub {{ font-size:.98rem; }} .kpi-grid {{ grid-template-columns:1fr 1fr; gap:.65rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
