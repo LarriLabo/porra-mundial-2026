@@ -151,11 +151,7 @@ style = f"""
 .stApp {{ background: linear-gradient(180deg, #ffffff 0%, {C_BG} 42%, #edf4f6 100%); }}
 .block-container {{ max-width: 1180px; padding-top: 1.1rem; padding-bottom: 2rem; }}
 #MainMenu, footer, header {{ visibility: hidden; }}
-.hero {{
-  background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 55%, {C_PRIMARY_LIGHT} 100%);
-  border-radius: 30px; padding: 1.65rem 1.8rem 1.55rem; box-shadow: 0 22px 44px rgba(0,74,95,.22);
-  color: white; position: relative; overflow: hidden;
-}}
+.hero {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 55%, {C_PRIMARY_LIGHT} 100%); border-radius: 30px; padding: 1.65rem 1.8rem 1.55rem; box-shadow: 0 22px 44px rgba(0,74,95,.22); color: white; position: relative; overflow: hidden; }}
 .hero::before {{ content:""; position:absolute; width:260px; height:260px; right:-60px; top:-65px; background:radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%); }}
 .hero::after {{ content:""; position:absolute; width:220px; height:220px; left:-30px; bottom:-70px; background:radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%); }}
 .hero-top {{ font-size:.96rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; opacity:.96; }}
@@ -172,11 +168,10 @@ style = f"""
 .kpi-value {{ color:{C_SECONDARY_DARK}; font-size:1.95rem; font-weight:900; line-height:1; }}
 .kpi-label {{ color:{C_PRIMARY_DARK}; font-size:.92rem; font-weight:800; margin-top:.35rem; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
-.analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
-.analysis-note {{ color:{C_GRAY_DARK}; font-size:.95rem; line-height:1.45; font-weight:600; margin-bottom:.75rem; }}
 .callout {{ margin-top:1rem; background:linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding:1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
 .callout-title {{ font-weight:900; font-size:1.15rem; margin-bottom:.15rem; }}
 .callout-text {{ font-weight:700; font-size:.97rem; line-height:1.45; }}
+.analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .dup-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-left:6px solid {C_SECONDARY}; border-radius:18px; padding:.9rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); margin-bottom:.7rem; }}
 .dup-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.18rem; }}
 .dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
@@ -237,7 +232,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Radiografía de las apuestas realizadas</div>", unsafe_allow_html=True)
-st.markdown("<div class='analysis-box'><div class='analysis-note'>Para no dar pistas de equipos concretos, aquí solo se muestran los <b>porcentajes de selección por nivel</b>, ordenados de <b>mayor a menor</b>. Así se ve dónde se concentra más apuesta, pero sin revelar qué selección está detrás de cada porcentaje.</div></div>", unsafe_allow_html=True)
 if chart_html:
     st.markdown(chart_html, unsafe_allow_html=True)
 else:
@@ -245,11 +239,11 @@ else:
 
 st.markdown("<div class='section-title'>¿Hay apuestas idénticas?</div>", unsafe_allow_html=True)
 if duplicate_bets:
-    st.markdown(f"<div class='analysis-box'><div class='analysis-note'>Sí, ya hay <b>{len(duplicate_bets)}</b> combinación(es) de equipos repetida(s). Para no revelar selecciones concretas, aquí solo se muestra qué participantes han coincidido al 100% en su apuesta.</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='analysis-box'><div class='dup-text'>Sí, ya hay <b>{len(duplicate_bets)}</b> combinación(es) de equipos repetida(s). Para no revelar selecciones concretas, aquí solo se muestra qué participantes han coincidido al 100% en su apuesta.</div></div>", unsafe_allow_html=True)
     for dup in duplicate_bets:
         participantes = ', '.join(escape_html(p) for p in dup['participantes'])
         st.markdown(f"<div class='dup-card'><div class='dup-title'>{dup['repeticiones']} apuestas idénticas</div><div class='dup-text'><b>Participantes que coinciden:</b> {participantes}</div></div>", unsafe_allow_html=True)
 else:
-    st.markdown("<div class='analysis-box'><div class='analysis-note'>De momento, no hay apuestas idénticas en la selección completa de equipos. Cada persona está tirando por su propio camino… al menos por ahora.</div></div>", unsafe_allow_html=True)
+    st.markdown("<div class='analysis-box'><div class='dup-text'>De momento, no hay apuestas idénticas en la selección completa de equipos. Cada persona está tirando por su propio camino… al menos por ahora.</div></div>", unsafe_allow_html=True)
 
 st.markdown("<div class='footer-note'>Buen rollo, alguna pulla elegante y mucho fútbol: ese es el espíritu.</div>", unsafe_allow_html=True)
