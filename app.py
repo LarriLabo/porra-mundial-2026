@@ -10,7 +10,6 @@ st.set_page_config(page_title="VSDTI Porra Mundial 2026", page_icon="🌍", layo
 SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBMvHH0xI/edit?usp=drivesdk&ouid=105950533705571221592&rtpof=true&sd=true"
 CACHE_MINUTES = 5
 PRICE_PER_ENTRY = 10
-TOP_TEAMS_PER_LEVEL = 6
 DEADLINE_TEXT = "11/06/2026 a las 12:00am"
 
 C_PRIMARY_DARK = "#004A5F"
@@ -33,6 +32,8 @@ LEVEL_COLORS = {
     'Nivel 7': '#706F6F',
     'Nivel 8': '#9C9B9B',
 }
+
+LEVEL_TEAMS = {'Nivel 1': ['Francia', 'España', 'Argentina', 'Inglaterra', 'Portugal', 'Brasil'], 'Nivel 2': ['Países Bajos', 'Marruecos', 'Bélgica', 'Alemania', 'Croacia', 'Colombia'], 'Nivel 3': ['Senegal', 'México', 'EEUU', 'Uruguay', 'Japón', 'Suiza'], 'Nivel 4': ['Irán', 'Turquía', 'Ecuador', 'Austria', 'Corea del Sur', 'Australia'], 'Nivel 5': ['Argelia', 'Egipto', 'Canadá', 'Noruega', 'Panamá', 'C. de Marfil'], 'Nivel 6': ['Suecia', 'Paraguay', 'Rep. Checa', 'Escocia', 'Túnez', 'R.D. Congo'], 'Nivel 7': ['Uzbekistán', 'Catar', 'Irak', 'Sudáfrica', 'A. Saudita', 'Jordania'], 'Nivel 8': ['Bosnia', 'Cabo Verde', 'Ghana', 'Curazao', 'Haití', 'N. Zelanda']}
 
 
 def make_download_url(url: str) -> str:
@@ -58,7 +59,9 @@ def load_resumen() -> pd.DataFrame:
 
 
 def get_levels(df: pd.DataFrame):
-    return [c for c in df.columns if str(c).strip().lower().startswith('nivel')]
+    cols = [c for c in df.columns if str(c).strip().lower().startswith('nivel')]
+    ordered = sorted(cols, key=lambda x: int(re.search(r'(\d+)', str(x)).group(1)) if re.search(r'(\d+)', str(x)) else 999)
+    return ordered
 
 
 def count_entries(df: pd.DataFrame) -> int:
@@ -77,24 +80,30 @@ def escape_html(text):
 
 
 def render_level_selection_chart(df: pd.DataFrame) -> str:
-    levels = get_levels(df)
+    levels = [lvl for lvl in get_levels(df) if lvl in LEVEL_TEAMS]
     if not levels:
-        return ""
+        levels = list(LEVEL_TEAMS.keys())
+
+    total_entries = max(count_entries(df), 1)
     parts = ["<div class='levels-grid'>"]
     for level in levels:
-        series = df[level].dropna().astype(str).str.strip()
-        if series.empty:
-            continue
-        percentages = (series.value_counts(normalize=True) * 100).round(1).head(TOP_TEAMS_PER_LEVEL)
+        teams = LEVEL_TEAMS.get(level, [])
+        series = df[level].dropna().astype(str).str.strip() if level in df.columns else pd.Series(dtype=str)
+        counts = series.value_counts()
+        percentages = []
+        for team in teams:
+            pct = round((int(counts.get(team, 0)) / total_entries) * 100, 1)
+            percentages.append((team, pct))
         color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
-        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{escape_html(level)}</div>")
-        for idx, pct in enumerate(percentages.tolist(), start=1):
-            pct_value = float(pct)
+        teams_text = ' · '.join(escape_html(team) for team in teams)
+        title_text = f"{escape_html(level)} ({teams_text})" if teams_text else escape_html(level)
+        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_text}</div>")
+        for idx, (_team, pct_value) in enumerate(percentages, start=1):
             pct_str = f"{pct_value:.1f}%"
             parts.append(
                 f"<div class='bar-row'>"
-                f"<div class='bar-top'><span class='bar-team'>{idx}ª selección más repetida</span><span class='bar-pct'>{pct_str}</span></div>"
-                f"<div class='bar-track'><div class='bar-fill' style='width:{min(pct_value,100)}%; background:{color};'></div></div>"
+                f"<div class='bar-top'><span class='bar-team'>{idx}ª selección del nivel</span><span class='bar-pct'>{pct_str}</span></div>"
+                f"<div class='bar-track'><div class='bar-fill' style='width:{min(max(pct_value,0),100)}%; background:{color};'></div></div>"
                 f"</div>"
             )
         parts.append("</div>")
@@ -169,7 +178,7 @@ style = f"""
 .dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
 .levels-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:.25rem; }}
 .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
-.level-card-title {{ font-weight:900; font-size:1.05rem; margin-bottom:.6rem; }}
+.level-card-title {{ font-weight:900; font-size:1rem; margin-bottom:.6rem; line-height:1.35; }}
 .bar-row {{ margin-bottom:.58rem; }}
 .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }}
 .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }}
