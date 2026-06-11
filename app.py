@@ -316,9 +316,13 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+recaudacion = total_porras * PRICE_PER_ENTRY
+premio_ganadora = round(recaudacion * 0.70, 2)
+premio_segunda = round(recaudacion * 0.30, 2)
+
 st.markdown(f"""
 <div class='card' style='margin-top:1rem;'>
-  <div class='card-text'>La inscripción ya se ha cerrado. Con <b>{total_porras} porras registradas</b>, ahora toca comparar pronósticos, descubrir coincidencias y ver quién se la ha jugado de verdad en esta edición.</div>
+  <div class='card-text'>La inscripción ya se ha cerrado. Con <b>{total_porras} porras registradas</b> y una <b>recaudación total de {recaudacion} €</b>, ahora toca comparar pronósticos y ver quién se la ha jugado de verdad en esta edición. <b>Simulación de reparto</b>: si hubiera <b>1 porra ganadora</b> y <b>1 segunda clasificada</b>, el bote podría repartirse al <b>70% / 30%</b>, es decir, <b>{premio_ganadora:.2f} €</b> para la ganadora y <b>{premio_segunda:.2f} €</b> para la segunda.</div>
 </div>
 """, unsafe_allow_html=True)
 
