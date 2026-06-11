@@ -197,7 +197,7 @@ st.markdown(f"""
 <div class='hero'>
   <div class='hero-top'>Bienvenid@s</div>
   <div class='hero-title'>VSDTI Porra Mundial 2026</div>
-  <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! ⚽🌍 Aquí se viene emoción, piques sanos, pronósticos imposibles y alguna que otra aparición repentina del clásico “yo eso ya lo sabía”. De momento, el balón está en el punto de penalti… y <b>ya van {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada.</div>
+  <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… y <b>ya tenemos {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
   <div class='badge-row'>
     <div class='badge'>⚽ Mundial 2026</div>
     <div class='badge'>🔥 {total_porras} porras realizadas</div>
