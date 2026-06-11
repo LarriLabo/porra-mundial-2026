@@ -97,8 +97,11 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
         percentages = sorted(percentages, key=lambda x: (-x[1], x[0]))
         color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
         teams_text = ' · '.join(escape_html(team) for team in teams)
-        title_text = f"{escape_html(level)} ({teams_text})" if teams_text else escape_html(level)
-        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_text}</div>")
+        title_html = (
+            f"<div class='level-name'>{escape_html(level)}</div><div class='level-teams'>({teams_text})</div>"
+            if teams_text else f"<div class='level-name'>{escape_html(level)}</div>"
+        )
+        parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_html}</div>")
         for idx, (_team, pct_value) in enumerate(percentages, start=1):
             pct_str = f"{pct_value:.1f}%"
             parts.append(
@@ -179,7 +182,9 @@ style = f"""
 .dup-text {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.42; font-weight:600; }}
 .levels-grid {{ display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:.25rem; }}
 .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
-.level-card-title {{ font-weight:900; font-size:1rem; margin-bottom:.6rem; line-height:1.35; }}
+.level-card-title {{ margin-bottom:.6rem; line-height:1.25; }}
+.level-name {{ font-weight:900; font-size:1rem; }}
+.level-teams {{ font-weight:700; font-size:.84rem; color:#706F6F; margin-top:.18rem; line-height:1.35; }}
 .bar-row {{ margin-bottom:.58rem; }}
 .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }}
 .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }}
