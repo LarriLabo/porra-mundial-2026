@@ -115,7 +115,7 @@ def find_duplicate_bets(df: pd.DataFrame):
 def analyze_similarity(df: pd.DataFrame):
     records, levels = get_bet_records(df)
     if not records or not levels:
-        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels)}
+        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels), 'participaciones': 0}
 
     exact_groups = find_duplicate_bets(df)
     pair_scores = []
@@ -133,7 +133,14 @@ def analyze_similarity(df: pd.DataFrame):
     top_pairs = non_exact[:5]
     near_clone_pairs = sum(1 for p in non_exact if p['matches'] >= max(len(levels) - 1, 1))
     max_matches = pair_scores[0]['matches'] if pair_scores else 0
-    return {'exact_groups': exact_groups, 'top_pairs': top_pairs, 'near_clone_pairs': near_clone_pairs, 'max_matches': max_matches, 'levels_count': len(levels)}
+    return {
+        'exact_groups': exact_groups,
+        'top_pairs': top_pairs,
+        'near_clone_pairs': near_clone_pairs,
+        'max_matches': max_matches,
+        'levels_count': len(levels),
+        'participaciones': len(records)
+    }
 
 
 def render_similarity_block(insights: dict) -> str:
@@ -142,6 +149,7 @@ def render_similarity_block(insights: dict) -> str:
     top_pairs = insights.get('top_pairs', [])
     near_clone_pairs = insights.get('near_clone_pairs', 0)
     max_matches = insights.get('max_matches', 0)
+    participaciones = insights.get('participaciones', 0)
 
     if exact_groups:
         final_result_html = ["<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div>"]
@@ -169,6 +177,7 @@ def render_similarity_block(insights: dict) -> str:
         "<div class='section-title'>Radar de afinidades entre participantes</div>"
         "<div class='analysis-box'>"
         "<div class='affinity-stats'>"
+        f"<div class='affinity-stat'><div class='affinity-stat-value'>{participaciones}</div><div class='affinity-stat-label'>Participaciones</div></div>"
         f"<div class='affinity-stat'><div class='affinity-stat-value'>{len(exact_groups)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div>"
         f"<div class='affinity-stat'><div class='affinity-stat-value'>{near_clone_pairs}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div>"
         f"<div class='affinity-stat'><div class='affinity-stat-value'>{max_matches}/{levels_count}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div>"
@@ -230,10 +239,10 @@ def refresh_data():
 
 try:
     resumen_df = load_resumen()
-    total_porras = count_entries(resumen_df)
     chart_html = render_level_selection_chart(resumen_df)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     participant_selection_html = render_participant_selection_block(resumen_df)
+    total_porras = count_entries(resumen_df)
 except Exception:
     total_porras = 0
     chart_html = ""
@@ -261,7 +270,6 @@ style = f"""
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
-.card-text {{ color:{C_GRAY_DARK}; font-size:.98rem; line-height:1.52; font-weight:600; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
 .premios-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
 .premios-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
@@ -275,7 +283,7 @@ style = f"""
 .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; line-height:1.05; margin:.25rem 0; }}
 .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
 .analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
-.affinity-stats {{ display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:.9rem; }}
+.affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }}
 .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }}
 .affinity-stat-value {{ color:{C_SECONDARY_DARK}; font-size:1.6rem; font-weight:900; line-height:1; }}
 .affinity-stat-label {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:800; margin-top:.28rem; line-height:1.25; }}
@@ -322,12 +330,6 @@ st.markdown(f"""
     </div>
     <div class='hero-logo-slot hero-logo-slot--right'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div>
   </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown(f"""
-<div class='card' style='margin-top:1rem;'>
-  <div class='card-text'>La inscripción ya se ha cerrado. Con <b>{total_porras} porras registradas</b> y una <b>recaudación total de {recaudacion} €</b>, ahora toca comparar pronósticos y ver quién se la ha jugado de verdad en esta edición.</div>
 </div>
 """, unsafe_allow_html=True)
 
