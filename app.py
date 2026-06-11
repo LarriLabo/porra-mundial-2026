@@ -12,6 +12,7 @@ SOURCE_URL = "https://docs.google.com/spreadsheets/d/1q4SpZQb7_7UrX-NtReo2XS7jBM
 CACHE_MINUTES = 5
 PRICE_PER_ENTRY = 10
 TOP_TEAMS_PER_LEVEL = 5
+DEADLINE_TEXT = "11/06/2026 a las 12:00am"
 
 C_PRIMARY_DARK = "#004A5F"
 C_PRIMARY = "#327D8E"
@@ -89,11 +90,11 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
         percentages = (series.value_counts(normalize=True) * 100).round(1).head(TOP_TEAMS_PER_LEVEL)
         color = LEVEL_COLORS.get(str(level), C_PRIMARY_DARK)
         parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{escape_html(level)}</div>")
-        for team, pct in percentages.items():
-            pct_str = f"{pct:.1f}%"
+        for idx, pct in enumerate(percentages.values.tolist(), start=1):
+            pct_str = f"{float(pct):.1f}%"
             parts.append(
                 f"<div class='bar-row'>"
-                f"<div class='bar-top'><span class='bar-team'>{escape_html(team)}</span><span class='bar-pct'>{pct_str}</span></div>"
+                f"<div class='bar-top'><span class='bar-team'>{idx}ª selección más repetida</span><span class='bar-pct'>{pct_str}</span></div>"
                 f"<div class='bar-track'><div class='bar-fill' style='width:{min(float(pct),100)}%; background:{color};'></div></div>"
                 f"</div>"
             )
@@ -118,10 +119,8 @@ def find_duplicate_bets(df: pd.DataFrame):
     duplicates = []
     for _, group in work.groupby('combo_key'):
         if len(group) > 1:
-            teams = [t for t in group.iloc[0][levels].tolist() if str(t).strip()]
             duplicates.append({
                 'participantes': group['PARTICIPANTE'].tolist(),
-                'equipos': teams,
                 'repeticiones': int(len(group))
             })
     duplicates.sort(key=lambda x: (-x['repeticiones'], ', '.join(x['participantes'])))
@@ -169,8 +168,8 @@ style = f"""
   background: radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%);
 }}
 .hero-top {{ font-size: .96rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .96; }}
-.hero-title {{ font-size: 2.75rem; line-height: 1.03; font-weight: 900; margin-top: .45rem; margin-bottom: .45rem; }}
-.hero-sub {{ font-size: 1.08rem; line-height: 1.48; font-weight: 700; max-width: 820px; opacity: .98; }}
+.hero-title {{ font-size: 2.45rem; line-height: 1.08; font-weight: 900; margin-top: .45rem; margin-bottom: .45rem; }}
+.hero-sub {{ font-size: 1.08rem; line-height: 1.48; font-weight: 700; max-width: 860px; opacity: .98; }}
 .badge-row {{ display:flex; flex-wrap:wrap; gap:.65rem; margin-top: 1rem; }}
 .badge {{ background: rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); color:#fff; padding:.5rem .8rem; border-radius:999px; font-weight:800; font-size:.92rem; backdrop-filter: blur(2px); }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
@@ -202,12 +201,12 @@ style = f"""
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top: .9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
 @media (max-width: 980px) {{
-  .hero-title {{ font-size: 2.2rem; }}
+  .hero-title {{ font-size: 2.05rem; }}
   .kpi-grid {{ grid-template-columns:repeat(2, 1fr); }}
   .levels-grid {{ grid-template-columns:1fr; }}
 }}
 @media (max-width: 640px) {{
-  .hero-title {{ font-size: 1.9rem; }}
+  .hero-title {{ font-size: 1.7rem; }}
   .hero-sub {{ font-size: .98rem; }}
   .kpi-grid {{ grid-template-columns:1fr 1fr; gap:.65rem; }}
 }}
@@ -218,13 +217,14 @@ st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"""
 <div class='hero'>
   <div class='hero-top'>Bienvenid@s</div>
-  <div class='hero-title'>Porra Mundial 2026 · Recaudación actual: {recaudacion} €</div>
+  <div class='hero-title'>Porra Mundial 2026 · Cierre de apuestas: {escape_html(DEADLINE_TEXT)} · Recaudación actual: {recaudacion} €</div>
   <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! ⚽🌍 Aquí se viene emoción, piques sanos, pronósticos imposibles y alguna que otra aparición repentina del clásico “yo eso ya lo sabía”. De momento, el balón está en el punto de penalti… y <b>ya van {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada.</div>
   <div class='badge-row'>
     <div class='badge'>⚽ Mundial 2026</div>
     <div class='badge'>🌎 Canadá · México · USA</div>
     <div class='badge'>🔥 {total_porras} porras realizadas</div>
     <div class='badge'>💰 {recaudacion} € en premios</div>
+    <div class='badge'>⏰ Cierre: {escape_html(DEADLINE_TEXT)}</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -272,19 +272,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Radiografía de las apuestas realizadas</div>", unsafe_allow_html=True)
-st.markdown("<div class='analysis-box'><div class='analysis-note'>Para quien todavía se lo está pensando: aquí va una foto rápida de por dónde van las apuestas. El gráfico muestra el porcentaje de porras que llevan a los equipos más repetidos en cada nivel, para que se vea dónde está el rebaño… y dónde puede haber hueco para una predicción valiente.</div></div>", unsafe_allow_html=True)
+st.markdown("<div class='analysis-box'><div class='analysis-note'>Para no dar pistas de equipos concretos, aquí solo se muestran los <b>porcentajes de selección por nivel</b>. Así se ve dónde se concentra más apuesta, pero sin revelar qué selección está detrás de cada porcentaje.</div></div>", unsafe_allow_html=True)
 if chart_html:
     st.markdown(chart_html, unsafe_allow_html=True)
 else:
-    st.info("Todavía no hay datos suficientes para generar el gráfico de selecciones por nivel.")
+    st.info("Todavía no hay datos suficientes para generar el resumen de porcentajes por nivel.")
 
 st.markdown("<div class='section-title'>¿Hay apuestas idénticas?</div>", unsafe_allow_html=True)
 if duplicate_bets:
-    st.markdown(f"<div class='analysis-box'><div class='analysis-note'>Sí, ya hay <b>{len(duplicate_bets)}</b> combinación(es) de equipos repetida(s). Vamos, que algunas mentes futboleras ya están pensando exactamente igual. Esto también da pistas interesantes sobre qué selecciones se están poniendo de moda.</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='analysis-box'><div class='analysis-note'>Sí, ya hay <b>{len(duplicate_bets)}</b> combinación(es) de equipos repetida(s). Para no revelar selecciones concretas, aquí solo se muestra qué participantes han coincidido al 100% en su apuesta.</div></div>", unsafe_allow_html=True)
     for dup in duplicate_bets:
-        participantes = ', '.join(dup['participantes'])
-        equipos = ' · '.join(dup['equipos']) if dup['equipos'] else 'Sin equipos detectados'
-        st.markdown(f"<div class='dup-card'><div class='dup-title'>{dup['repeticiones']} apuestas iguales</div><div class='dup-text'><b>Participantes:</b> {participantes}<br><b>Selecciones compartidas:</b> {equipos}</div></div>", unsafe_allow_html=True)
+        participantes = ', '.join(escape_html(p) for p in dup['participantes'])
+        st.markdown(f"<div class='dup-card'><div class='dup-title'>{dup['repeticiones']} apuestas idénticas</div><div class='dup-text'><b>Participantes que coinciden:</b> {participantes}</div></div>", unsafe_allow_html=True)
 else:
     st.markdown("<div class='analysis-box'><div class='analysis-note'>De momento, no hay apuestas idénticas en la selección completa de equipos. Cada persona está tirando por su propio camino… al menos por ahora.</div></div>", unsafe_allow_html=True)
 
