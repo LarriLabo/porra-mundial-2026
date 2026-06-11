@@ -252,19 +252,17 @@ style = f"""
 .hero {{ background: linear-gradient(135deg, {C_PRIMARY_DARK} 0%, {C_PRIMARY} 55%, {C_PRIMARY_LIGHT} 100%); border-radius: 30px; padding: 1.5rem 1.8rem; box-shadow: 0 22px 44px rgba(0,74,95,.22); color: white; position: relative; overflow: hidden; text-align: center; }}
 .hero::before {{ content:""; position:absolute; width:260px; height:260px; right:-60px; top:-65px; background:radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%); }}
 .hero::after {{ content:""; position:absolute; width:220px; height:220px; left:-30px; bottom:-70px; background:radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%); }}
-.hero-title-wrap {{ display:grid; grid-template-columns:140px 1fr 140px; align-items:center; max-width:980px; margin:0 auto; column-gap:1rem; position:relative; z-index:2; }}
-.hero-logo-slot {{ justify-self:start; width:140px; display:flex; align-items:center; justify-content:flex-start; }}
-.hero-logo {{ width:138px; height:138px; object-fit:contain; filter:none; }}
+.hero-title-wrap {{ display:grid; grid-template-columns:160px 1fr 160px; align-items:center; max-width:1120px; margin:0 auto; column-gap:1rem; position:relative; z-index:2; }}
+.hero-logo-slot {{ width:160px; display:flex; align-items:center; }}
+.hero-logo-slot--left {{ justify-content:flex-start; }}
+.hero-logo-slot--right {{ justify-content:flex-end; }}
+.hero-logo {{ width:150px; height:150px; object-fit:contain; filter:none; }}
 .hero-title-block {{ text-align:center; width:100%; }}
-.hero-spacer {{ width:140px; }}
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
 .card-text {{ color:{C_GRAY_DARK}; font-size:.98rem; line-height:1.52; font-weight:600; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
-.callout {{ margin-top:1rem; background:linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding:1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
-.callout-title {{ font-weight:900; font-size:1.15rem; margin-bottom:.15rem; }}
-.callout-text {{ font-weight:700; font-size:.97rem; line-height:1.45; }}
 .premios-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
 .premios-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
 .premios-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
@@ -308,8 +306,8 @@ style = f"""
 .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }}
 .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
-@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:112px 1fr 112px; max-width:860px; }} .hero-logo-slot, .hero-spacer {{ width:112px; }} .hero-logo {{ width:108px; height:108px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
-@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:92px 1fr 92px; column-gap:.55rem; max-width:100%; }} .hero-logo-slot, .hero-spacer {{ width:92px; }} .hero-logo {{ width:86px; height:86px; }} .hero-title-block {{ text-align:center; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .participant-card {{ padding:.85rem .9rem; }} .pick-team {{ font-size:.8rem; }} }}
+@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo {{ width:112px; height:112px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
+@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .hero-logo-slot {{ width:90px; }} .hero-logo {{ width:82px; height:82px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .participant-card {{ padding:.85rem .9rem; }} .pick-team {{ font-size:.8rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
@@ -317,12 +315,12 @@ st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"""
 <div class='hero'>
   <div class='hero-title-wrap'>
-    <div class='hero-logo-slot'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div>
+    <div class='hero-logo-slot hero-logo-slot--left'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div>
     <div class='hero-title-block'>
       <div class='hero-title-line1'>Versia Servicios Distribuidos</div>
       <div class='hero-title-line2'>Porra Mundial 2026</div>
     </div>
-    <div class='hero-spacer'></div>
+    <div class='hero-logo-slot hero-logo-slot--right'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -351,13 +349,6 @@ st.markdown(f"""
       <div class='premio-note'>La copa de plata y un meritorio <b>30%</b> del bote.</div>
     </div>
   </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<div class='callout'>
-  <div class='callout-title'>Empieza la comparativa de porras</div>
-  <div class='callout-text'>Se acabó el tiempo de apuntarse. Ahora llega la parte divertida: comparar apuestas, detectar duplas sospechosamente parecidas y empezar con el pique sano antes de que ruede el balón.</div>
 </div>
 """, unsafe_allow_html=True)
 
