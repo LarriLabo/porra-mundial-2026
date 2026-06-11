@@ -367,38 +367,6 @@ style = f"""
 .participant-name {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.7rem; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
 .pick-chip {{ display:flex; align-items:center; gap:.45rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }}
 .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
-[data-baseweb="tab-list"] {
-  gap: .45rem;
-  margin-top: 1rem;
-  margin-bottom: .55rem;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-[data-baseweb="tab"] {
-  background: rgba(50,125,142,.035) !important;
-  border: 1px solid rgba(50,125,142,.14) !important;
-  border-radius: 999px !important;
-  padding: .55rem 1rem !important;
-  min-height: auto !important;
-  box-shadow: 0 8px 18px rgba(0,0,0,.04);
-}
-[data-baseweb="tab"] p {
-  color: {C_PRIMARY_DARK} !important;
-  font-weight: 900 !important;
-  font-size: 1rem !important;
-  line-height: 1.2 !important;
-}
-button[role="tab"][aria-selected="true"] {
-  background: linear-gradient(135deg, rgba(0,74,95,.12) 0%, rgba(100,174,188,.14) 100%) !important;
-  border-color: rgba(50,125,142,.30) !important;
-}
-button[role="tab"][aria-selected="true"] p {
-  color: {C_PRIMARY_DARK} !important;
-}
-[data-baseweb="tab-highlight"] {
-  display: none !important;
-}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid, .calendar-tail-grid, .calendar-timeline {{ grid-template-columns:1fr; }} .timeline-node:not(:last-child)::after {{ display:none; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo {{ width:112px; height:112px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
 @media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .hero-logo-slot {{ width:90px; }} .hero-logo {{ width:82px; height:82px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
@@ -440,29 +408,22 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-tabs = st.tabs([
-    "Calendario",
-    "Radar de afinidades entre participantes",
-    "Radiografía de las apuestas realizadas",
-    "Selección de participantes",
-])
-
-with tabs[0]:
+with st.expander("Calendario", expanded=False):
     st.markdown(calendar_html, unsafe_allow_html=True)
 
-with tabs[1]:
+with st.expander("Radar de afinidades entre participantes", expanded=False):
     if similarity_html:
         st.markdown(similarity_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar el radar de afinidades.")
 
-with tabs[2]:
+with st.expander("Radiografía de las apuestas realizadas", expanded=False):
     if chart_html:
         st.markdown(chart_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para generar el resumen de porcentajes por nivel.")
 
-with tabs[3]:
+with st.expander("Selección de participantes", expanded=False):
     if participant_selection_html:
         st.markdown(participant_selection_html, unsafe_allow_html=True)
     else:
