@@ -37,6 +37,7 @@ LEVEL_COLORS = {
 }
 
 LEVEL_TEAMS = {'Nivel 1': ['Francia', 'España', 'Argentina', 'Inglaterra', 'Portugal', 'Brasil'], 'Nivel 2': ['Países Bajos', 'Marruecos', 'Bélgica', 'Alemania', 'Croacia', 'Colombia'], 'Nivel 3': ['Senegal', 'México', 'EEUU', 'Uruguay', 'Japón', 'Suiza'], 'Nivel 4': ['Irán', 'Turquía', 'Ecuador', 'Austria', 'Corea del Sur', 'Australia'], 'Nivel 5': ['Argelia', 'Egipto', 'Canadá', 'Noruega', 'Panamá', 'C. de Marfil'], 'Nivel 6': ['Suecia', 'Paraguay', 'Rep. Checa', 'Escocia', 'Túnez', 'R.D. Congo'], 'Nivel 7': ['Uzbekistán', 'Catar', 'Irak', 'Sudáfrica', 'A. Saudita', 'Jordania'], 'Nivel 8': ['Bosnia', 'Cabo Verde', 'Ghana', 'Curazao', 'Haití', 'N. Zelanda']}
+CALENDAR_ITEMS = [{'label': 'Inauguración', 'date': '11 junio 2026', 'detail': 'México City Stadium'}, {'label': 'Fase de grupos', 'date': '11–27 junio', 'detail': '48 selecciones · 12 grupos'}, {'label': 'Dieciseisavos (1/32)', 'date': '28 junio–3 julio', 'detail': 'Arranca el KO'}, {'label': 'Octavos', 'date': '4–7 julio', 'detail': 'Los 16 mejores'}, {'label': 'Cuartos', 'date': '9–11 julio', 'detail': 'Cruces decisivos'}, {'label': 'Semifinales', 'date': '14–15 julio', 'detail': 'Último salto a la final'}, {'label': 'Tercer puesto', 'date': '18 julio', 'detail': 'Partido por el bronce'}, {'label': 'Final', 'date': '19 julio 2026', 'detail': 'New York New Jersey Stadium'}]
 
 
 def make_download_url(url: str) -> str:
@@ -187,6 +188,27 @@ def render_similarity_block(insights: dict) -> str:
     )
 
 
+def render_calendar_block() -> str:
+    parts = [
+        "<div class='section-title'>Calendario</div>",
+        "<div class='calendar-box'>",
+        "<div class='calendar-head'>Fechas clave del Mundial 2026</div>",
+        "<div class='calendar-grid'>"
+    ]
+    for idx, item in enumerate(CALENDAR_ITEMS):
+        accent = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY, '#9C9B9B'][idx % 8]
+        parts.append(
+            f"<div class='calendar-card'>"
+            f"<div class='calendar-badge' style='background:{accent};'>{idx+1:02d}</div>"
+            f"<div class='calendar-label'>{escape_html(item['label'])}</div>"
+            f"<div class='calendar-date'>{escape_html(item['date'])}</div>"
+            f"<div class='calendar-detail'>{escape_html(item['detail'])}</div>"
+            f"</div>"
+        )
+    parts.append("</div></div>")
+    return ''.join(parts)
+
+
 def render_level_selection_chart(df: pd.DataFrame) -> str:
     levels = [lvl for lvl in get_levels(df) if lvl in LEVEL_TEAMS]
     if not levels:
@@ -242,12 +264,14 @@ try:
     chart_html = render_level_selection_chart(resumen_df)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     participant_selection_html = render_participant_selection_block(resumen_df)
+    calendar_html = render_calendar_block()
     total_porras = count_entries(resumen_df)
 except Exception:
     total_porras = 0
     chart_html = ""
     similarity_html = ""
     participant_selection_html = ""
+    calendar_html = render_calendar_block()
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -270,8 +294,8 @@ style = f"""
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
-.premios-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
-.premios-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
+.premios-box, .calendar-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
+.premios-head, .calendar-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
 .premios-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
 .premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
 .premio-card {{ border-radius:22px; padding:1rem; text-align:center; position:relative; overflow:hidden; }}
@@ -281,6 +305,12 @@ style = f"""
 .premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }}
 .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; line-height:1.05; margin:.25rem 0; }}
 .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
+.calendar-grid {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.9rem; }}
+.calendar-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:.95rem .95rem .9rem; box-shadow:0 8px 18px rgba(0,0,0,.04); position:relative; overflow:hidden; }}
+.calendar-badge {{ width:34px; height:34px; border-radius:999px; color:white; font-weight:900; display:flex; align-items:center; justify-content:center; font-size:.86rem; margin-bottom:.55rem; }}
+.calendar-label {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.98rem; line-height:1.2; margin-bottom:.25rem; }}
+.calendar-date {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.12rem; }}
+.calendar-detail {{ color:{C_GRAY_DARK}; font-weight:700; font-size:.84rem; line-height:1.3; }}
 .analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem 1rem .9rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
 .affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }}
 .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }}
@@ -313,8 +343,8 @@ style = f"""
 .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }}
 .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
-@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo {{ width:112px; height:112px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
-@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .hero-logo-slot {{ width:90px; }} .hero-logo {{ width:82px; height:82px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .participant-card {{ padding:.85rem .9rem; }} .pick-team {{ font-size:.8rem; }} }}
+@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid, .calendar-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo {{ width:112px; height:112px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
+@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .hero-logo-slot {{ width:90px; }} .hero-logo {{ width:82px; height:82px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .participant-card, .calendar-card {{ padding:.85rem .9rem; }} .pick-team {{ font-size:.8rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
@@ -352,6 +382,8 @@ st.markdown(f"""
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+st.markdown(calendar_html, unsafe_allow_html=True)
 
 if similarity_html:
     st.markdown(similarity_html, unsafe_allow_html=True)
