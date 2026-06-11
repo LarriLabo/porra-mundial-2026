@@ -156,11 +156,10 @@ style = f"""
 .hero::after {{ content:""; position:absolute; width:220px; height:220px; left:-30px; bottom:-70px; background:radial-gradient(circle, rgba(241,200,49,.30) 0%, rgba(241,200,49,0) 72%); }}
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
-.hero-sub {{ font-size:1.08rem; line-height:1.48; font-weight:700; max-width:900px; margin: .95rem auto 0; opacity:.98; position:relative; z-index:2; }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
 .card-icon {{ font-size:1.55rem; margin-bottom:.18rem; }}
 .card-title {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; margin-bottom:.2rem; }}
-.card-text {{ color:{C_GRAY_DARK}; font-size:.95rem; line-height:1.42; font-weight:600; }}
+.card-text {{ color:{C_GRAY_DARK}; font-size:.98rem; line-height:1.52; font-weight:600; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
 .callout {{ margin-top:1rem; background:linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding:1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
 .callout-title {{ font-weight:900; font-size:1.15rem; margin-bottom:.15rem; }}
@@ -182,24 +181,21 @@ style = f"""
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top:.9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
 @media (max-width: 980px) {{ .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .levels-grid {{ grid-template-columns:1fr; }} }}
-@media (max-width: 640px) {{ .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .hero-sub {{ font-size:.98rem; }} }}
+@media (max-width: 640px) {{ .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
 
-st.markdown(f"""
+st.markdown("""
 <div class='hero'>
   <div class='hero-title-line1'>Versia Servicios Distribuidos</div>
   <div class='hero-title-line2'>Porra Mundial 2026</div>
-  <div class='hero-sub'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… y <b>ya tenemos {total_porras} porras apuntadas</b>. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown(f"""
 <div class='card' style='margin-top:1rem;'>
-  <div class='card-icon'>📝</div>
-  <div class='card-title'>Todavía hay sitio en la porra</div>
-  <div class='card-text'>Ya hay <b>{total_porras}</b> porras registradas. Si alguien falta por apuntarse, que no se despiste: luego llegan los goles, los aciertos... y las lamentaciones.</div>
+  <div class='card-text'>¡Arranca la cuenta atrás para el Mundial más gigante, divertido y glorioso de todos! De momento, el balón está a punto de rodar… hay <b>{total_porras} porras registradas</b>. Si alguien falta por apuntarse, que no se despiste: luego llegan los goles, los aciertos... y las lamentaciones. Si todavía falta alguien por subirse al carro, este es el momento de entrar en el juego y no quedarse viendo el torneo desde la grada, las 12:00am es la hora límite.</div>
 </div>
 """, unsafe_allow_html=True)
 
