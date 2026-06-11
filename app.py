@@ -300,6 +300,18 @@ style = f"""
 .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
 .bar-fill {{ height:100%; border-radius:999px; }}
 .footer-note {{ margin-top:.9rem; color:{C_GRAY}; text-align:center; font-size:.88rem; font-weight:700; }}
+.premios-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); margin-top:1rem; }}
+.premios-head {{ color:{C_PRIMARY_DARK}; font-size:1.08rem; font-weight:900; margin-bottom:.8rem; text-align:center; }}
+.premios-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
+.premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
+.premio-card {{ border-radius:22px; padding:1rem; text-align:center; position:relative; overflow:hidden; }}
+.premio-card--oro {{ background:linear-gradient(135deg, rgba(241,200,49,.18) 0%, rgba(242,142,0,.15) 100%); border:1px solid rgba(242,142,0,.25); }}
+.premio-card--plata {{ background:linear-gradient(135deg, rgba(112,111,111,.12) 0%, rgba(156,155,155,.16) 100%); border:1px solid rgba(112,111,111,.2); }}
+.premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }}
+.premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }}
+.premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; line-height:1.05; margin:.25rem 0; }}
+.premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
+@media (max-width: 980px) {{ .premios-grid {{ grid-template-columns:1fr; }} }}
 .refresh-wrap {{ display:flex; justify-content:center; margin-top:1.2rem; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }}
 .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
@@ -322,9 +334,30 @@ premio_segunda = round(recaudacion * 0.30, 2)
 
 st.markdown(f"""
 <div class='card' style='margin-top:1rem;'>
-  <div class='card-text'>La inscripción ya se ha cerrado. Con <b>{total_porras} porras registradas</b> y una <b>recaudación total de {recaudacion} €</b>, ahora toca comparar pronósticos y ver quién se la ha jugado de verdad en esta edición. <b>Simulación de reparto</b>: si hubiera <b>1 porra ganadora</b> y <b>1 segunda clasificada</b>, el bote podría repartirse al <b>70% / 30%</b>, es decir, <b>{premio_ganadora:.2f} €</b> para la ganadora y <b>{premio_segunda:.2f} €</b> para la segunda.</div>
+  <div class='card-text'>La inscripción ya se ha cerrado. Con <b>{total_porras} porras registradas</b> y una <b>recaudación total de {recaudacion} €</b>, ahora toca comparar pronósticos y ver quién se la ha jugado de verdad en esta edición.</div>
 </div>
 """, unsafe_allow_html=True)
+st.markdown(f"""
+<div class='premios-box'>
+  <div class='premios-head'>Simulación divertida del reparto del bote</div>
+  <div class='premios-sub'>Si el premio se repartiera entre una porra campeona y una subcampeona, así podría quedar el podio económico.</div>
+  <div class='premios-grid'>
+    <div class='premio-card premio-card--oro'>
+      <div class='premio-icon'>🏆</div>
+      <div class='premio-pos'>1ª clasificada</div>
+      <div class='premio-amount'>{premio_ganadora:.2f} €</div>
+      <div class='premio-note'>La copa grande, la gloria eterna y el <b>70%</b> del bote.</div>
+    </div>
+    <div class='premio-card premio-card--plata'>
+      <div class='premio-icon'>🏆</div>
+      <div class='premio-pos'>2ª clasificada</div>
+      <div class='premio-amount'>{premio_segunda:.2f} €</div>
+      <div class='premio-note'>La copa de plata y un meritorio <b>30%</b> del bote.</div>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 
 st.markdown("""
 <div class='callout'>
