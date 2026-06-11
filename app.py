@@ -102,11 +102,11 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
             if teams_text else f"<div class='level-name'>{escape_html(level)}</div>"
         )
         parts.append(f"<div class='level-card'><div class='level-card-title' style='color:{color}'>{title_html}</div>")
-        for team_name, pct_value in percentages:
+        for idx, (_team, pct_value) in enumerate(percentages, start=1):
             pct_str = f"{pct_value:.1f}%"
             parts.append(
                 f"<div class='bar-row'>"
-                f"<div class='bar-top'><span class='bar-team'>{escape_html(team_name)}</span><span class='bar-pct'>{pct_str}</span></div>"
+                f"<div class='bar-top'><span class='bar-team'>{idx}ª selección del nivel</span><span class='bar-pct'>{pct_str}</span></div>"
                 f"<div class='bar-track'><div class='bar-fill' style='width:{min(max(pct_value,0),100)}%; background:{color};'></div></div>"
                 f"</div>"
             )
@@ -137,10 +137,12 @@ def find_duplicate_bets(df: pd.DataFrame):
 try:
     resumen_df = load_resumen()
     total_porras = count_entries(resumen_df)
+    recaudacion = total_porras * PRICE_PER_ENTRY
     chart_html = render_level_selection_chart(resumen_df)
     duplicate_bets = find_duplicate_bets(resumen_df)
 except Exception:
     total_porras = 0
+    recaudacion = 0
     chart_html = ""
     duplicate_bets = []
 
@@ -155,6 +157,8 @@ style = f"""
 .hero-title-line1 {{ font-size:2.1rem; line-height:1.05; font-weight:900; margin-top:.2rem; position:relative; z-index:2; }}
 .hero-title-line2 {{ font-size:2.55rem; line-height:1.02; font-weight:900; margin-top:.15rem; position:relative; z-index:2; }}
 .card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:22px; padding:1rem 1rem .95rem; box-shadow:0 10px 24px rgba(0,0,0,.05); height:100%; }}
+.card-icon {{ font-size:1.55rem; margin-bottom:.18rem; }}
+.card-title {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; margin-bottom:.2rem; }}
 .card-text {{ color:{C_GRAY_DARK}; font-size:.98rem; line-height:1.52; font-weight:600; }}
 .section-title {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1.24rem; margin:1.15rem 0 .55rem; }}
 .callout {{ margin-top:1rem; background:linear-gradient(135deg, rgba(242,142,0,.98) 0%, rgba(241,200,49,.98) 100%); border-radius:22px; padding:1rem 1.1rem; color:#fff; box-shadow:0 16px 34px rgba(204,97,0,.22); }}
