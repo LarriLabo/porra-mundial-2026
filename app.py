@@ -128,13 +128,11 @@ def analyze_similarity(df: pd.DataFrame):
             else:
                 diff_levels.append(level)
         pair_scores.append({'a': left['participante'], 'b': right['participante'], 'matches': matches, 'diff_levels': diff_levels})
-
     pair_scores.sort(key=lambda x: (-x['matches'], x['a'], x['b']))
     non_exact = [p for p in pair_scores if p['matches'] < len(levels)]
     top_pairs = non_exact[:5]
     near_clone_pairs = sum(1 for p in non_exact if p['matches'] >= max(len(levels) - 1, 1))
     max_matches = pair_scores[0]['matches'] if pair_scores else 0
-
     return {'exact_groups': exact_groups, 'top_pairs': top_pairs, 'near_clone_pairs': near_clone_pairs, 'max_matches': max_matches, 'levels_count': len(levels)}
 
 
@@ -207,6 +205,26 @@ def render_level_selection_chart(df: pd.DataFrame) -> str:
     return ''.join(parts)
 
 
+def render_participant_selection_block(df: pd.DataFrame) -> str:
+    records, levels = get_bet_records(df)
+    if not records or not levels:
+        return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay suficientes registros para mostrar la selección de participantes.</div></div>"
+
+    parts = ["<div class='section-title'>Selección de participantes</div>", "<div class='participant-grid'>"]
+    for rec in records:
+        name = escape_html(rec['participante'])
+        parts.append(f"<div class='participant-card'><div class='participant-name'>{name}</div><div class='participant-picks'>")
+        for level in levels:
+            team = escape_html(rec['choices'].get(level, '')) if rec['choices'].get(level, '') else '—'
+            color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
+            parts.append(
+                f"<div class='pick-chip'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span></div>"
+            )
+        parts.append("</div></div>")
+    parts.append("</div>")
+    return ''.join(parts)
+
+
 def refresh_data():
     st.cache_data.clear()
     st.rerun()
@@ -217,10 +235,12 @@ try:
     total_porras = count_entries(resumen_df)
     chart_html = render_level_selection_chart(resumen_df)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
+    participant_selection_html = render_participant_selection_block(resumen_df)
 except Exception:
     total_porras = 0
     chart_html = ""
     similarity_html = ""
+    participant_selection_html = ""
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -280,10 +300,18 @@ style = f"""
 .bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }}
 .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }}
 .bar-fill {{ height:100%; border-radius:999px; }}
+.participant-grid {{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:1rem; margin-top:.25rem; }}
+.participant-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; padding:.95rem 1rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
+.participant-name {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; margin-bottom:.7rem; line-height:1.25; }}
+.participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
+.pick-chip {{ display:flex; align-items:center; gap:.45rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }}
+.pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }}
+.pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }}
+.participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }}
 .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
-@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:110px 1fr 110px; max-width:840px; }} .hero-logo-slot, .hero-spacer {{ width:110px; }} .hero-logo {{ width:96px; height:96px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
-@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:84px 1fr 84px; column-gap:.55rem; max-width:100%; }} .hero-logo-slot, .hero-spacer {{ width:84px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-block {{ text-align:center; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} }}
+@media (max-width: 980px) {{ .premios-grid, .levels-grid, .affinity-grid, .participant-grid {{ grid-template-columns:1fr; }} .affinity-stats {{ grid-template-columns:1fr; }} .hero-title-wrap {{ grid-template-columns:110px 1fr 110px; max-width:840px; }} .hero-logo-slot, .hero-spacer {{ width:110px; }} .hero-logo {{ width:96px; height:96px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
+@media (max-width: 640px) {{ .hero-title-wrap {{ grid-template-columns:84px 1fr 84px; column-gap:.55rem; max-width:100%; }} .hero-logo-slot, .hero-spacer {{ width:84px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-block {{ text-align:center; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .participant-card {{ padding:.85rem .9rem; }} .pick-team {{ font-size:.8rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
@@ -343,6 +371,9 @@ if chart_html:
     st.markdown(chart_html, unsafe_allow_html=True)
 else:
     st.info("Todavía no hay datos suficientes para generar el resumen de porcentajes por nivel.")
+
+if participant_selection_html:
+    st.markdown(participant_selection_html, unsafe_allow_html=True)
 
 if st.button("Actualizar"):
     refresh_data()
