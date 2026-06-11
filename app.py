@@ -198,7 +198,7 @@ def render_similarity_block(insights: dict) -> str:
     return (
         "<div class='section-title'>Radar de afinidades entre participantes</div>"
         "<div class='analysis-box'>"
-        "<div class='affinity-summary'>La inscripción ya se ha cerrado. Ahora toca mirar qué porras han ido por libre, cuáles se han calcado y qué parejas han rozado el déjà vu futbolero.</div>"
+        "<div class='affinity-summary'></div>"
         "<div class='affinity-stats'>"
         f"<div class='affinity-stat'><div class='affinity-stat-value'>{len(exact_groups)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div>"
         f"<div class='affinity-stat'><div class='affinity-stat-value'>{near_clone_pairs}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div>"
