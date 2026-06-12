@@ -170,14 +170,13 @@ def render_participant_picks_html(choices, levels, selection_points=None):
 def analyze_similarity(df):
     records, levels = get_bet_records(df)
     if not records or not levels:
-        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels), 'participaciones': 0, 'unique_participants': [], 'unique_count': 0}
+        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels), 'participaciones': 0}
     groups = {}
     for rec in records:
         key = ' || '.join(rec['choices'][level] for level in levels)
         groups.setdefault(key, []).append(rec['participante'])
     exact_groups = [{'participantes': ps, 'repeticiones': len(ps)} for ps in groups.values() if len(ps) > 1]
     exact_groups.sort(key=lambda x: (-x['repeticiones'], ', '.join(x['participantes'])))
-    unique_participants = sorted([ps[0] for ps in groups.values() if len(ps) == 1], key=lambda x: str(x).strip().casefold())
     pair_scores = []
     for i in range(len(records)):
         for j in range(i+1, len(records)):
@@ -192,10 +191,10 @@ def analyze_similarity(df):
             pair_scores.append({'a': a['participante'], 'b': b['participante'], 'matches': matches, 'diff_levels': diff})
     pair_scores.sort(key=lambda x: (-x['matches'], x['a'], x['b']))
     non_exact = [p for p in pair_scores if p['matches'] < len(levels)]
-    return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records), 'unique_participants': unique_participants, 'unique_count': len(unique_participants)}
+    return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records)}
 
 def render_similarity_block(ins):
-    lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0); up = ins.get('unique_participants', []); uc = ins.get('unique_count', 0)
+    lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0)
     if eg:
         html = ["<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>Sí, ha habido porras espejo.</b></div>"]
         for dup in eg[:4]:
@@ -211,16 +210,7 @@ def render_similarity_block(ins):
         html.append("</div>"); pair = ''.join(html)
     else:
         pair = "<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>No hay suficientes datos para detectar afinidades destacables entre porras.</div></div>"
-    if up:
-        html = ["<div class='affinity-card'><div class='affinity-card-title'>Porras únicas</div><div class='affinity-item'><b>Sí, hay selecciones que no coinciden con ninguna otra.</b></div>"]
-        preview = up[:8]
-        html.append(f"<div class='affinity-item'>{', '.join(escape_html(p) for p in preview)}</div>")
-        if len(up) > 8:
-            html.append(f"<div class='affinity-item'><span class='affinity-muted'>Y {len(up) - 8} participante(s) más con porra única.</span></div>")
-        html.append("</div>"); unique_html = ''.join(html)
-    else:
-        unique_html = "<div class='affinity-card'><div class='affinity-card-title'>Porras únicas</div><div class='affinity-item'><b>No hay ninguna selección completamente única.</b></div><div class='affinity-item'>Todas las porras coinciden exactamente con al menos otra persona o forman parte de grupos repetidos.</div></div>"
-    return f"<div class='analysis-box'><div class='affinity-stats'><div class='affinity-stat'><div class='affinity-stat-value'>{part}</div><div class='affinity-stat-label'>Participaciones</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{len(eg)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{uc}</div><div class='affinity-stat-label'>Porras únicas detectadas</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{mm}/{lc}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div></div><div class='affinity-grid'>{final}{pair}{unique_html}</div></div>"
+    return f"<div class='analysis-box'><div class='affinity-stats'><div class='affinity-stat'><div class='affinity-stat-value'>{part}</div><div class='affinity-stat-label'>Participaciones</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{len(eg)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{ncp}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{mm}/{lc}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div></div><div class='affinity-grid'>{final}{pair}</div></div>"
 
 def render_match_cards(matches):
     return "<div class='match-list'>" + ''.join([f"<div class='match-card'><div class='match-card-date'>{escape_html(m['date'])}</div><div class='match-card-main'><div class='match-card-time'>{escape_html(m['time'])} h</div><div class='match-card-title'>{escape_html(m['match'])}</div><div class='match-card-group'>{escape_html(m['group'])}</div></div></div>" for m in matches]) + "</div>"
@@ -408,14 +398,13 @@ try:
     classification_df = parse_classification(puntos_raw)
     selection_points = parse_selection_points(puntos_raw)
     classification_html = render_classification_block(classification_df, resumen_df, selection_points)
-    participant_selection_html = render_participant_selection_block(resumen_df, selection_points)
     calendar_html = render_calendar_content()
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     chart_html = render_level_selection_chart(resumen_df)
     total_porras = count_entries(resumen_df)
 except Exception:
     classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame()
-    classification_html = ''; participant_selection_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
+    classification_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -484,25 +473,20 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Podium provisional</div><div class='premios-sub'>El <b>1er puesto</b> recibe el 70% de lo recaudado y el <b>2º puesto</b> el 30%. Si hay empate en el <b>1er puesto</b>, ese premio se reparte entre las personas empatadas y <b>no hay premio para el 2º puesto</b>.</div>{podium_html}</div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Participantes", "Calendario", "Curiosidades", "Selección equipos"])
+tabs = st.tabs(["Clasificación", "Calendario", "Curiosidades", "Selección equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar la clasificación.")
 with tabs[1]:
-    if participant_selection_html:
-        st.markdown(participant_selection_html, unsafe_allow_html=True)
-    else:
-        st.info("Todavía no hay suficientes registros para mostrar la selección de participantes.")
-with tabs[2]:
     st.markdown(calendar_html, unsafe_allow_html=True)
-with tabs[3]:
+with tabs[2]:
     if similarity_html:
         st.markdown(similarity_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar el radar de afinidades.")
-with tabs[4]:
+with tabs[3]:
     if chart_html:
         st.markdown(chart_html, unsafe_allow_html=True)
     else:
