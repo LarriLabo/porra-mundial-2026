@@ -54,6 +54,9 @@ def normalize_level_key(value: str) -> str:
     m = re.search(r'(\d+)', str(value))
     return f"Nivel {int(m.group(1))}" if m else str(value).strip()
 
+def normalize_selection_key(value: str) -> str:
+    return re.sub(r'\s+', ' ', str(value).replace(' ', ' ').strip()).casefold()
+
 def _find_table_start(row_values, labels, occurrence='first'):
     norm = [str(x).strip().upper() if pd.notna(x) else '' for x in row_values]
     labels_norm = [x.strip().upper() for x in labels]
@@ -79,64 +82,43 @@ def parse_classification(raw: pd.DataFrame) -> pd.DataFrame:
     ranking['POS_ORDENADA'] = ranking['PUNTOS_TOTALES'].rank(method='dense', ascending=False).astype(int)
     return ranking
 
-def parse_participant_level_points(raw: pd.DataFrame) -> dict:
-    best_row = None
-    best_score = -1
-    participant_col = None
-    level_cols = {}
-
-    scan_rows = min(len(raw), 60)
-    for ridx in range(scan_rows):
-        row = raw.iloc[ridx].tolist()
-        norm = [str(x).strip().upper() if pd.notna(x) else '' for x in row]
-        if 'PARTICIPANTE' not in norm:
-            continue
-        local_participant_col = norm.index('PARTICIPANTE')
-        local_level_cols = {}
-        for cidx, cell in enumerate(norm):
-            m = re.search(r'NIVEL\s*([1-8])', cell)
-            if m:
-                local_level_cols[f"Nivel {int(m.group(1))}"] = cidx
-        score = len(local_level_cols)
-        if score > best_score or (score == best_score and ridx > (best_row if best_row is not None else -1)):
-            best_score = score
-            best_row = ridx
-            participant_col = local_participant_col
-            level_cols = local_level_cols
-
-    if best_row is None or participant_col is None or not level_cols:
-        return {}
+def parse_selection_points(raw: pd.DataFrame) -> dict:
+    def parse_points_value(value):
+        if pd.isna(value) or str(value).strip() == '':
+            return ''
+        num = pd.to_numeric(value, errors='coerce')
+        if pd.notna(num):
+            parsed = float(num)
+            return int(parsed) if parsed.is_integer() else round(parsed, 1)
+        m = re.search(r'-?\d+(?:[.,]\d+)?', str(value))
+        if not m:
+            return ''
+        parsed = float(m.group(0).replace(',', '.'))
+        return int(parsed) if parsed.is_integer() else round(parsed, 1)
 
     result = {}
-    blank_streak = 0
-    for ridx in range(best_row + 1, len(raw)):
-        row = raw.iloc[ridx]
-        participant = row.iloc[participant_col] if participant_col < len(row) else None
-        if pd.isna(participant) or str(participant).strip() == '':
-            blank_streak += 1
-            if blank_streak >= 6:
-                break
+    if raw is None or raw.empty or raw.shape[1] <= 13:
+        return result
+
+    selection_col = 5   # Columna F
+    points_col = 13     # Columna N
+
+    for ridx in range(len(raw)):
+        selection = raw.iat[ridx, selection_col] if selection_col < raw.shape[1] else None
+        points = raw.iat[ridx, points_col] if points_col < raw.shape[1] else None
+        if pd.isna(selection):
             continue
-        blank_streak = 0
-        participant_name = str(participant).strip()
-        pkey = normalize_person_key(participant_name)
-        result[pkey] = {}
-        for level, cidx in level_cols.items():
-            value = row.iloc[cidx] if cidx < len(row) else None
-            if pd.isna(value) or str(value).strip() == '':
-                result[pkey][normalize_level_key(level)] = ''
-                continue
-            num = pd.to_numeric(value, errors='coerce')
-            if pd.notna(num):
-                parsed = int(num) if float(num).is_integer() else round(float(num), 1)
-                result[pkey][normalize_level_key(level)] = parsed
-            else:
-                m = re.search(r'-?\d+(?:[.,]\d+)?', str(value))
-                if m:
-                    parsed = float(m.group(0).replace(',', '.'))
-                    result[pkey][normalize_level_key(level)] = int(parsed) if parsed.is_integer() else round(parsed, 1)
-                else:
-                    result[pkey][normalize_level_key(level)] = ''
+        selection_text = str(selection).replace(' ', ' ').strip()
+        if not selection_text:
+            continue
+        selection_upper = selection_text.upper()
+        if selection_upper in {'SELECCIÓN', 'SELECCIONES', 'SELECCION', 'PARTICIPANTE', 'POS', 'PUNTOS TOTALES'}:
+            continue
+        parsed_points = parse_points_value(points)
+        if parsed_points == '':
+            continue
+        result[normalize_selection_key(selection_text)] = parsed_points
+
     return result
 
 def get_levels(df: pd.DataFrame):
@@ -157,9 +139,8 @@ def get_bet_records(df: pd.DataFrame):
     return [{'participante': row['PARTICIPANTE'], 'choices': {level: row[level] for level in levels}} for _, row in work[['PARTICIPANTE'] + levels].iterrows()], levels
 
 
-def build_participant_selection_lookup(df: pd.DataFrame, participant_level_points=None):
+def build_participant_selection_lookup(df: pd.DataFrame):
     records, levels = get_bet_records(df)
-    participant_level_points = participant_level_points or {}
     lookup = {}
     for rec in records:
         raw_name = str(rec.get('participante', '')).strip()
@@ -167,21 +148,21 @@ def build_participant_selection_lookup(df: pd.DataFrame, participant_level_point
             continue
         lookup[normalize_person_key(raw_name)] = {
             'participante': raw_name,
-            'choices': rec.get('choices', {}),
-            'points_by_level': participant_level_points.get(normalize_person_key(raw_name), {})
+            'choices': rec.get('choices', {})
         }
     return lookup, levels
 
 
-def render_participant_picks_html(choices, levels, points_by_level=None):
-    points_by_level = points_by_level or {}
+def render_participant_picks_html(choices, levels, selection_points=None):
+    selection_points = selection_points or {}
     parts = ["<div class='participant-picks'>"]
     for level in levels:
-        tv = choices.get(level, '') if isinstance(choices, dict) else ''
-        team = escape_html(tv) if tv else '—'
+        team_value = choices.get(level, '') if isinstance(choices, dict) else ''
+        team_text = str(team_value).replace('\xa0', ' ').strip()
+        team = escape_html(team_text) if team_text else '—'
         color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
-        pts_val = points_by_level.get(normalize_level_key(level), '')
-        pts_html = escape_html(pts_val) if pts_val != '' else ''
+        pts_val = selection_points.get(normalize_selection_key(team_text), '') if team_text else ''
+        pts_html = f"{escape_html(pts_val)} pts" if pts_val != '' else '—'
         parts.append(f"<div class='pick-chip'><span class='pick-main'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span></span><span class='pick-points'>{pts_html}</span></div>")
     parts.append("</div>")
     return ''.join(parts)
@@ -276,9 +257,9 @@ def render_level_selection_chart(df):
     parts.append("</div>")
     return ''.join(parts)
 
-def render_participant_selection_block(df, participant_level_points=None):
+def render_participant_selection_block(df, selection_points=None):
     records, levels = get_bet_records(df)
-    participant_level_points = participant_level_points or {}
+    selection_points = selection_points or {}
     if not records or not levels:
         return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay suficientes registros para mostrar la selección de participantes.</div></div>"
     records = sorted(records, key=lambda r: str(r.get('participante', '')).strip().casefold())
@@ -286,16 +267,16 @@ def render_participant_selection_block(df, participant_level_points=None):
     for rec in records:
         raw_name = str(rec['participante']).strip()
         name = escape_html(raw_name)
-        pts_by_level = participant_level_points.get(normalize_person_key(raw_name), {})
-        chips_html = render_participant_picks_html(rec.get('choices', {}), levels, pts_by_level)
+        chips_html = render_participant_picks_html(rec.get('choices', {}), levels, selection_points)
         parts.append(f"<details class='participant-details'><summary class='participant-summary'>{name}</summary><div class='participant-body'>{chips_html}</div></details>")
     parts.append("</div>")
     return ''.join(parts)
 
-def render_classification_block(df, bets_df=None, participant_level_points=None):
+def render_classification_block(df, bets_df=None, selection_points=None):
     if df is None or df.empty:
         return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay datos suficientes para mostrar la clasificación.</div></div>"
-    participant_lookup, levels = build_participant_selection_lookup(bets_df, participant_level_points) if bets_df is not None else ({}, [])
+    participant_lookup, levels = build_participant_selection_lookup(bets_df) if bets_df is not None else ({}, [])
+    selection_points = selection_points or {}
     parts = ["<div class='classification-board'>"]
     for _, row in df.iterrows():
         pos = int(row['POS_ORDENADA']) if pd.notna(row['POS_ORDENADA']) else '-'
@@ -306,7 +287,7 @@ def render_classification_block(df, bets_df=None, participant_level_points=None)
         row_html = f"<div class='classification-row'><div class='classification-pos {badge_class}'>{pos}</div><div class='classification-name'>{name}</div><div class='classification-points-wrap'><div class='classification-points-label'>Puntos</div><div class='classification-points'>{points}</div></div></div>"
         pdata = participant_lookup.get(normalize_person_key(raw_name))
         if pdata and levels:
-            picks_html = render_participant_picks_html(pdata.get('choices', {}), levels, pdata.get('points_by_level', {}))
+            picks_html = render_participant_picks_html(pdata.get('choices', {}), levels, selection_points)
             parts.append(f"<details class='classification-details'><summary class='classification-summary'>{row_html}</summary><div class='classification-body'>{picks_html}</div></details>")
         else:
             parts.append(row_html)
@@ -320,9 +301,9 @@ try:
     resumen_df = load_sheet('Resumen de Apuestas', header=0)
     puntos_raw = load_sheet('Puntos', header=None)
     classification_df = parse_classification(puntos_raw)
-    participant_level_points = parse_participant_level_points(puntos_raw)
-    classification_html = render_classification_block(classification_df, resumen_df, participant_level_points)
-    participant_selection_html = render_participant_selection_block(resumen_df, participant_level_points)
+    selection_points = parse_selection_points(puntos_raw)
+    classification_html = render_classification_block(classification_df, resumen_df, selection_points)
+    participant_selection_html = render_participant_selection_block(resumen_df, selection_points)
     calendar_html = render_calendar_content()
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     chart_html = render_level_selection_chart(resumen_df)
@@ -387,7 +368,7 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }} .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }} .affinity-stat-value {{ color:{C_SECONDARY_DARK}; font-size:1.6rem; font-weight:900; }} .affinity-stat-label {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:800; margin-top:.28rem; line-height:1.25; }} .affinity-item {{ color:{C_GRAY_DARK}; font-size:.92rem; line-height:1.45; font-weight:600; margin-bottom:.55rem; }} .affinity-item:last-child {{ margin-bottom:0; }} .affinity-muted {{ color:{C_GRAY}; }}
 .level-card-title {{ margin-bottom:.6rem; line-height:1.25; }} .level-teams {{ font-weight:700; font-size:.84rem; color:#706F6F; margin-top:.18rem; line-height:1.35; }} .bar-row {{ margin-bottom:.58rem; }} .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }} .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }} .bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }} .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }} .bar-fill {{ height:100%; border-radius:999px; }}
 .participant-accordion {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.85rem; margin-top:.25rem; align-items:start; }} .participant-details {{ height:fit-content; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
-.pick-chip {{ display:flex; align-items:center; justify-content:space-between; gap:.55rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-main {{ display:flex; align-items:center; gap:.45rem; min-width:0; flex:1 1 auto; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; min-width:0; flex:1 1 auto; }} .pick-points {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; line-height:1; min-width:28px; text-align:right; flex:0 0 auto; padding-right:.18rem; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
+.pick-chip {{ display:flex; align-items:center; justify-content:space-between; gap:.55rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-main {{ display:flex; align-items:center; gap:.45rem; min-width:0; flex:1 1 auto; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; min-width:0; flex:1 1 auto; }} .pick-points {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:900; line-height:1; min-width:56px; text-align:right; flex:0 0 auto; padding-right:.18rem; white-space:nowrap; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width:980px) {{ .premios-grid, .levels-grid, .affinity-grid, .calendar-tail-grid, .calendar-timeline, .affinity-stats {{ grid-template-columns:1fr; }} .participant-accordion {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .classification-row {{ grid-template-columns:64px 1fr 105px; gap:.8rem; }} .classification-body {{ padding-left:4.95rem; }} .timeline-node:not(:last-child)::after {{ display:none; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo-badge {{ padding:.35rem .45rem; border-radius:20px; }} .hero-logo {{ width:104px; height:104px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
 @media (max-width:640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:56px 1fr 92px; gap:.7rem; padding:.78rem .8rem; }} .classification-body {{ padding-left:1rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-name {{ font-size:.95rem; }} .classification-points {{ font-size:1.25rem; }} .hero-logo-slot {{ width:90px; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
