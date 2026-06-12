@@ -294,101 +294,6 @@ def render_classification_block(df, bets_df=None, selection_points=None):
     parts.append("</div>")
     return ''.join(parts)
 
-
-def format_eur(amount):
-    formatted = f"{float(amount):,.2f}"
-    formatted = formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
-    return f"{formatted} €"
-
-
-def summarize_names(names, limit=3):
-    names = [str(n).strip() for n in names if str(n).strip()]
-    shown = [escape_html(name) for name in names[:limit]]
-    extra = max(len(names) - limit, 0)
-    if extra:
-        shown.append(f"+{extra}")
-    return ' · '.join(shown) if shown else '—'
-
-
-def build_podium_data(classification_df, total_entries, price_per_entry=10):
-    recaudacion_total = float(total_entries) * float(price_per_entry)
-    first_total = round(recaudacion_total * 0.70, 2)
-    second_total = round(recaudacion_total * 0.30, 2)
-
-    data = []
-    if classification_df is None or classification_df.empty:
-        return [
-            {'rank': 1, 'title': '1er puesto', 'names': [], 'per_prize': first_total, 'tie_count': 0, 'badge': 'gold', 'note': '70% del bote'},
-            {'rank': 2, 'title': '2º puesto', 'names': [], 'per_prize': second_total, 'tie_count': 0, 'badge': 'silver', 'note': '30% del bote'},
-            {'rank': 3, 'title': '3er puesto', 'names': [], 'per_prize': 0.0, 'tie_count': 0, 'badge': 'bronze', 'note': 'Llorería'}
-        ]
-
-    groups = {}
-    for rank in [1, 2, 3]:
-        subset = classification_df[classification_df['POS_ORDENADA'] == rank].copy()
-        if subset.empty:
-            groups[rank] = None
-            continue
-        groups[rank] = {
-            'names': subset['PARTICIPANTE'].astype(str).str.strip().tolist(),
-            'size': int(len(subset))
-        }
-
-    for rank, badge, title in [(1, 'gold', '1er puesto'), (2, 'silver', '2º puesto'), (3, 'bronze', '3er puesto')]:
-        group = groups.get(rank)
-        if group is None:
-            note = 'Llorería' if rank == 3 else ('70% del bote' if rank == 1 else '30% del bote')
-            per_prize = 0.0 if rank == 3 else (first_total if rank == 1 else second_total)
-            data.append({'rank': rank, 'title': title, 'names': [], 'per_prize': per_prize, 'tie_count': 0, 'badge': badge, 'note': note})
-            continue
-
-        total_prize = 0.0
-        note = 'Llorería' if rank == 3 else 'Sin premio'
-        if rank == 1:
-            total_prize = first_total
-            note = '70% del bote'
-        elif rank == 2:
-            if groups.get(1) and groups[1]['size'] > 1:
-                total_prize = 0.0
-                note = 'Sin premio por empate en 1º'
-            else:
-                total_prize = second_total
-                note = '30% del bote'
-        per_prize = round(total_prize / group['size'], 2) if group['size'] and rank in (1, 2) else 0.0
-        if group['size'] > 1 and total_prize > 0:
-            note = f"Premio repartido entre {group['size']} participantes"
-        if rank == 3:
-            note = 'Llorería'
-        data.append({'rank': rank, 'title': title, 'names': group['names'], 'per_prize': per_prize, 'tie_count': group['size'], 'badge': badge, 'note': note})
-    return data
-
-
-def render_podium_html(classification_df, total_entries, price_per_entry=10):
-    podium = build_podium_data(classification_df, total_entries, price_per_entry)
-    by_rank = {item['rank']: item for item in podium}
-    order = [2, 1, 3]
-    parts = ["<div class='podium-wrap'>"]
-    for rank in order:
-        item = by_rank.get(rank, {})
-        title = item.get('title', f'{rank}º puesto')
-        names_html = summarize_names(item.get('names', []), 3)
-        amount_html = format_eur(item.get('per_prize', 0.0))
-        shared_label = ''
-        if item.get('tie_count', 0) > 1 and item.get('per_prize', 0) > 0:
-            shared_label = f"<div class='podium-shared'>Empate entre {item['tie_count']} participantes</div>"
-        parts.append(
-            f"<div class='podium-step podium-step--{item.get('badge','bronze')} podium-step--rank-{rank}'>"
-            f"<div class='podium-cup'>🏆</div>"
-            f"<div class='podium-position'>{title}</div>"
-            f"<div class='podium-names'>{names_html}</div>"
-            f"<div class='podium-amount'>{amount_html}</div>"
-            f"{shared_label}"
-            f"<div class='podium-note'>{escape_html(item.get('note',''))}</div>"
-            f"</div>"
-        )
-    parts.append("</div>")
-    return ''.join(parts)
-
 def refresh_data():
     st.cache_data.clear(); st.rerun()
 
@@ -398,19 +303,16 @@ try:
     classification_df = parse_classification(puntos_raw)
     selection_points = parse_selection_points(puntos_raw)
     classification_html = render_classification_block(classification_df, resumen_df, selection_points)
-    participant_selection_html = render_participant_selection_block(resumen_df, selection_points)
     calendar_html = render_calendar_content()
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     chart_html = render_level_selection_chart(resumen_df)
     total_porras = count_entries(resumen_df)
 except Exception:
-    classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame()
-    classification_html = ''; participant_selection_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
+    classification_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
 premio_segunda = round(recaudacion * 0.30, 2)
-podium_html = render_podium_html(classification_df, total_porras, PRICE_PER_ENTRY)
 
 style = f"""
 <style>
@@ -432,7 +334,7 @@ style = f"""
 .premios-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
 .premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
 .premio-card {{ border-radius:22px; padding:1rem; text-align:center; overflow:hidden; }} .premio-card--oro {{ background:linear-gradient(135deg, rgba(241,200,49,.18) 0%, rgba(242,142,0,.15) 100%); border:1px solid rgba(242,142,0,.25); }} .premio-card--plata {{ background:linear-gradient(135deg, rgba(112,111,111,.12) 0%, rgba(156,155,155,.16) 100%); border:1px solid rgba(112,111,111,.2); }}
-.premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }} .premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }} .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }} .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }} .podium-wrap {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; align-items:end; margin-top:.2rem; }} .podium-step {{ position:relative; border-radius:24px 24px 18px 18px; padding:1rem .95rem 1.05rem; text-align:center; border:1px solid rgba(50,125,142,.14); box-shadow:0 10px 24px rgba(0,0,0,.05); min-height:248px; display:flex; flex-direction:column; justify-content:flex-start; }} .podium-step--rank-1 {{ min-height:286px; transform:translateY(-8px); }} .podium-step--rank-2, .podium-step--rank-3 {{ min-height:228px; }} .podium-step--gold {{ background:linear-gradient(180deg, rgba(241,200,49,.18) 0%, rgba(255,248,230,.98) 100%); }} .podium-step--silver {{ background:linear-gradient(180deg, rgba(156,155,155,.16) 0%, rgba(248,248,248,.98) 100%); }} .podium-step--bronze {{ background:linear-gradient(180deg, rgba(242,142,0,.10) 0%, rgba(255,250,244,.98) 100%); }} .podium-cup {{ font-size:2.65rem; line-height:1; margin-bottom:.2rem; }} .podium-position {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; }} .podium-names {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; line-height:1.35; margin:.6rem 0 .45rem; min-height:3.1rem; display:flex; align-items:center; justify-content:center; }} .podium-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.1rem 0 .2rem; line-height:1.05; }} .podium-shared {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:800; line-height:1.25; margin-bottom:.2rem; }} .podium-note {{ color:{C_GRAY_DARK}; font-size:.88rem; font-weight:600; line-height:1.35; margin-top:auto; padding-top:.4rem; }}
+.premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }} .premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }} .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }} .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }}
 [data-baseweb="tab-list"] {{ gap:.28rem; margin-top:1rem; margin-bottom:.55rem; flex-wrap:nowrap; overflow-x:hidden; scrollbar-width:none; }}
 [data-baseweb="tab-list"]::-webkit-scrollbar {{ display:none !important; }}
 [data-baseweb="tab"] {{ background:rgba(50,125,142,.035)!important; border:1px solid rgba(50,125,142,.14)!important; border-radius:999px!important; padding:.46rem .52rem!important; min-height:auto!important; min-width:0!important; flex:1 1 0!important; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
@@ -472,27 +374,22 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
-st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Podium provisional</div><div class='premios-sub'>El <b>1er puesto</b> recibe el 70% de lo recaudado y el <b>2º puesto</b> el 30%. Si hay empate en el <b>1er puesto</b>, ese premio se reparte entre las personas empatadas y <b>no hay premio para el 2º puesto</b>.</div>{podium_html}</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Reparto de premios</div><div class='premios-sub'>Si hubiera empate en el <b>1er puesto</b>, el premio se repartiría entre las personas empatadas y <b>no habría reparto al 2º puesto</b>.</div><div class='premios-grid'><div class='premio-card premio-card--oro'><div class='premio-icon'>🏆</div><div class='premio-pos'>1er puesto</div><div class='premio-amount'>{premio_ganadora:.2f} €</div><div class='premio-note'>La copa grande, la gloria eterna y el <b>70%</b> del bote.</div></div><div class='premio-card premio-card--plata'><div class='premio-icon'>🏆</div><div class='premio-pos'>2º puesto</div><div class='premio-amount'>{premio_segunda:.2f} €</div><div class='premio-note'>La copa de plata y un meritorio <b>30%</b> del bote.</div></div></div></div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Participantes", "Calendario", "Curiosidades", "Selección equipos"])
+tabs = st.tabs(["Clasificación", "Calendario", "Curiosidades", "Selección equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar la clasificación.")
 with tabs[1]:
-    if participant_selection_html:
-        st.markdown(participant_selection_html, unsafe_allow_html=True)
-    else:
-        st.info("Todavía no hay suficientes registros para mostrar la selección de participantes.")
-with tabs[2]:
     st.markdown(calendar_html, unsafe_allow_html=True)
-with tabs[3]:
+with tabs[2]:
     if similarity_html:
         st.markdown(similarity_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar el radar de afinidades.")
-with tabs[4]:
+with tabs[3]:
     if chart_html:
         st.markdown(chart_html, unsafe_allow_html=True)
     else:
