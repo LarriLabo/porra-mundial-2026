@@ -2,6 +2,7 @@
 import io
 import re
 import urllib.request
+import unicodedata
 from itertools import combinations
 import pandas as pd
 import streamlit as st
@@ -55,8 +56,155 @@ def normalize_level_key(value: str) -> str:
     return f"Nivel {int(m.group(1))}" if m else str(value).strip()
 
 def normalize_selection_key(value: str) -> str:
-    return re.sub(r'\s+', ' ', str(value).replace(' ', ' ').strip()).casefold()
+    return re.sub(r'\s+', ' ', str(value).replace('\xa0', ' ').strip()).casefold()
 
+
+def normalize_text_plain(value: str) -> str:
+    value = str(value).replace('\xa0', ' ').strip().casefold()
+    value = unicodedata.normalize('NFKD', value)
+    value = ''.join(ch for ch in value if not unicodedata.combining(ch))
+    value = re.sub(r'[^a-z0-9]+', ' ', value)
+    return re.sub(r'\s+', ' ', value).strip()
+
+TEAM_NAME_ALIASES = {
+    'bosnia': 'bosnia y herzegovina',
+    'bosnia y herzegovina': 'bosnia y herzegovina',
+    'rep checa': 'republica checa',
+    'republica checa': 'republica checa',
+    'chequia': 'republica checa',
+    'corea del sur': 'corea del sur',
+    'republica de corea': 'corea del sur',
+    'eeuu': 'estados unidos',
+    'estados unidos': 'estados unidos',
+    'usa': 'estados unidos',
+    'qatar': 'catar',
+    'catar': 'catar',
+    'c de marfil': 'costa de marfil',
+    'costa de marfil': 'costa de marfil',
+    'a saudita': 'arabia saudita',
+    'arabia saudita': 'arabia saudita',
+    'n zelanda': 'nueva zelanda',
+    'nueva zelanda': 'nueva zelanda',
+    'r d congo': 'rd congo',
+    'rd congo': 'rd congo',
+    'republica democratica del congo': 'rd congo',
+}
+
+MONTH_NAME_ALIASES = {
+    'enero': 'ene', 'ene': 'ene', 'febrero': 'feb', 'feb': 'feb', 'marzo': 'mar', 'mar': 'mar',
+    'abril': 'abr', 'abr': 'abr', 'mayo': 'may', 'may': 'may', 'junio': 'jun', 'jun': 'jun',
+    'julio': 'jul', 'jul': 'jul', 'agosto': 'ago', 'ago': 'ago', 'septiembre': 'sep', 'setiembre': 'sep',
+    'sep': 'sep', 'octubre': 'oct', 'oct': 'oct', 'noviembre': 'nov', 'nov': 'nov', 'diciembre': 'dic', 'dic': 'dic'
+}
+
+
+def normalize_team_key(value: str) -> str:
+    plain = normalize_text_plain(value)
+    return TEAM_NAME_ALIASES.get(plain, plain)
+
+
+def normalize_calendar_date_key(value) -> str:
+    plain = normalize_text_plain(value)
+    m = re.search(r'(\d{1,2})\s+([a-z]+)', plain)
+    if not m:
+        return ''
+    return f"{int(m.group(1))} {MONTH_NAME_ALIASES.get(m.group(2), m.group(2)[:3])}"
+
+
+def normalize_time_key(value) -> str:
+    m = re.search(r'(\d{1,2}:\d{2})', str(value))
+    if not m:
+        return ''
+    hh, mm = m.group(1).split(':')
+    return f"{int(hh):02d}:{mm}"
+
+
+def parse_score_value(value):
+    if pd.isna(value) or str(value).strip() == '':
+        return ''
+    num = pd.to_numeric(value, errors='coerce')
+    if pd.notna(num):
+        return int(float(num))
+    m = re.search(r'\d+', str(value))
+    return int(m.group(0)) if m else ''
+
+
+def parse_match_results_sheet(raw: pd.DataFrame) -> list:
+    results = []
+    if raw is None or raw.empty:
+        return results
+    for ridx in range(len(raw)):
+        row = raw.iloc[ridx].tolist()
+        norm = [normalize_text_plain(x) if pd.notna(x) else '' for x in row]
+        if 'equipo 1' not in norm or 'equipo 2' not in norm:
+            continue
+        goals_cols = [i for i, cell in enumerate(norm) if cell == 'goles']
+        if len(goals_cols) < 2:
+            continue
+        team1_col = norm.index('equipo 1')
+        team2_col = norm.index('equipo 2')
+        goals1_col, goals2_col = goals_cols[0], goals_cols[1]
+        date_col = next((i for i, cell in enumerate(norm) if cell in {'hora fecha', 'hora/fecha', 'fecha', 'hora'}), 0)
+        empty_rows = 0
+        for dr in range(ridx + 1, len(raw)):
+            vals = raw.iloc[dr].tolist()
+            vals_norm = [normalize_text_plain(x) if pd.notna(x) else '' for x in vals]
+            if 'equipo 1' in vals_norm and 'equipo 2' in vals_norm:
+                break
+            row_text = ' '.join(v for v in vals_norm if v)
+            if 'jornada' in row_text and ('junio' in row_text or 'julio' in row_text):
+                continue
+            team1 = vals[team1_col] if team1_col < len(vals) else None
+            team2 = vals[team2_col] if team2_col < len(vals) else None
+            if (pd.isna(team1) or str(team1).strip() == '') and (pd.isna(team2) or str(team2).strip() == ''):
+                empty_rows += 1
+                if empty_rows >= 4:
+                    break
+                continue
+            empty_rows = 0
+            team1_text = str(team1).strip() if pd.notna(team1) else ''
+            team2_text = str(team2).strip() if pd.notna(team2) else ''
+            if not team1_text or not team2_text:
+                continue
+            results.append({
+                'date_key': normalize_calendar_date_key(vals[date_col] if date_col < len(vals) else ''),
+                'time_key': normalize_time_key(vals[date_col] if date_col < len(vals) else ''),
+                'team1_key': normalize_team_key(team1_text),
+                'team2_key': normalize_team_key(team2_text),
+                'score1': parse_score_value(vals[goals1_col] if goals1_col < len(vals) else None),
+                'score2': parse_score_value(vals[goals2_col] if goals2_col < len(vals) else None),
+            })
+    return results
+
+
+def build_calendar_results_lookup(*result_sets) -> dict:
+    lookup = {}
+    for result_set in result_sets:
+        for item in result_set or []:
+            pair_key = frozenset({item['team1_key'], item['team2_key']})
+            lookup[(item.get('date_key', ''), item.get('time_key', ''), pair_key)] = item
+            lookup.setdefault(pair_key, item)
+    return lookup
+
+
+def find_match_result(match_row: dict, results_lookup=None):
+    if not results_lookup:
+        return None
+    match_text = str(match_row.get('match', ''))
+    if ' vs ' not in match_text:
+        return None
+    local_team, away_team = [part.strip() for part in match_text.split(' vs ', 1)]
+    local_key = normalize_team_key(local_team)
+    away_key = normalize_team_key(away_team)
+    pair_key = frozenset({local_key, away_key})
+    item = results_lookup.get((normalize_calendar_date_key(match_row.get('date', '')), normalize_time_key(match_row.get('time', '')), pair_key)) or results_lookup.get(pair_key)
+    if not item or item.get('score1', '') == '' or item.get('score2', '') == '':
+        return None
+    if local_key == item['team1_key'] and away_key == item['team2_key']:
+        return f"{item['score1']}-{item['score2']}"
+    if local_key == item['team2_key'] and away_key == item['team1_key']:
+        return f"{item['score2']}-{item['score1']}"
+    return None
 def _find_table_start(row_values, labels, occurrence='first'):
     norm = [str(x).strip().upper() if pd.notna(x) else '' for x in row_values]
     labels_norm = [x.strip().upper() for x in labels]
@@ -170,34 +318,13 @@ def render_participant_picks_html(choices, levels, selection_points=None):
 def analyze_similarity(df):
     records, levels = get_bet_records(df)
     if not records or not levels:
-        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels), 'participaciones': 0, 'fully_unique_participants': [], 'fully_unique_count': 0}
+        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels), 'participaciones': 0}
     groups = {}
     for rec in records:
         key = ' || '.join(rec['choices'][level] for level in levels)
         groups.setdefault(key, []).append(rec['participante'])
     exact_groups = [{'participantes': ps, 'repeticiones': len(ps)} for ps in groups.values() if len(ps) > 1]
     exact_groups.sort(key=lambda x: (-x['repeticiones'], ', '.join(x['participantes'])))
-
-    level_choice_counts = {level: {} for level in levels}
-    for rec in records:
-        for level in levels:
-            choice = str(rec['choices'].get(level, '')).strip()
-            if not choice:
-                continue
-            level_choice_counts[level][choice] = level_choice_counts[level].get(choice, 0) + 1
-
-    fully_unique_participants = []
-    for rec in records:
-        all_unique = True
-        for level in levels:
-            choice = str(rec['choices'].get(level, '')).strip()
-            if not choice or level_choice_counts[level].get(choice, 0) != 1:
-                all_unique = False
-                break
-        if all_unique:
-            fully_unique_participants.append(rec['participante'])
-    fully_unique_participants = sorted(fully_unique_participants, key=lambda x: str(x).strip().casefold())
-
     pair_scores = []
     for i in range(len(records)):
         for j in range(i+1, len(records)):
@@ -212,10 +339,10 @@ def analyze_similarity(df):
             pair_scores.append({'a': a['participante'], 'b': b['participante'], 'matches': matches, 'diff_levels': diff})
     pair_scores.sort(key=lambda x: (-x['matches'], x['a'], x['b']))
     non_exact = [p for p in pair_scores if p['matches'] < len(levels)]
-    return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records), 'fully_unique_participants': fully_unique_participants, 'fully_unique_count': len(fully_unique_participants)}
+    return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records)}
 
 def render_similarity_block(ins):
-    lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0); fup = ins.get('fully_unique_participants', []); fuc = ins.get('fully_unique_count', 0)
+    lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0)
     if eg:
         html = ["<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>Sí, ha habido porras espejo.</b></div>"]
         for dup in eg[:4]:
@@ -231,25 +358,22 @@ def render_similarity_block(ins):
         html.append("</div>"); pair = ''.join(html)
     else:
         pair = "<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>No hay suficientes datos para detectar afinidades destacables entre porras.</div></div>"
-    if fup:
-        html = ["<div class='affinity-card'><div class='affinity-card-title'>Porras totalmente únicas</div><div class='affinity-item'><b>Sí, hay participantes cuyas 8 selecciones son únicas y no coinciden ninguna con ningún otro participante.</b></div>"]
-        preview = fup[:8]
-        html.append(f"<div class='affinity-item'>{', '.join(escape_html(p) for p in preview)}</div>")
-        if len(fup) > 8:
-            html.append(f"<div class='affinity-item'><span class='affinity-muted'>Y {len(fup) - 8} participante(s) más con porra totalmente única.</span></div>")
-        html.append("</div>"); unique_html = ''.join(html)
-    else:
-        unique_html = "<div class='affinity-card'><div class='affinity-card-title'>Porras totalmente únicas</div><div class='affinity-item'><b>No hay ningún participante con las 8 selecciones completamente únicas.</b></div><div class='affinity-item'>Al menos una de las 8 selecciones de cada participante coincide con la de otra persona.</div></div>"
-    return f"<div class='analysis-box'><div class='affinity-stats'><div class='affinity-stat'><div class='affinity-stat-value'>{part}</div><div class='affinity-stat-label'>Participaciones</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{len(eg)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{fuc}</div><div class='affinity-stat-label'>Porras totalmente únicas</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{mm}/{lc}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div></div><div class='affinity-grid'>{final}{pair}{unique_html}</div></div>"
+    return f"<div class='analysis-box'><div class='affinity-stats'><div class='affinity-stat'><div class='affinity-stat-value'>{part}</div><div class='affinity-stat-label'>Participaciones</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{len(eg)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{ncp}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{mm}/{lc}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div></div><div class='affinity-grid'>{final}{pair}</div></div>"
 
-def render_match_cards(matches):
-    return "<div class='match-list'>" + ''.join([f"<div class='match-card'><div class='match-card-date'>{escape_html(m['date'])}</div><div class='match-card-main'><div class='match-card-time'>{escape_html(m['time'])} h</div><div class='match-card-title'>{escape_html(m['match'])}</div><div class='match-card-group'>{escape_html(m['group'])}</div></div></div>" for m in matches]) + "</div>"
+def render_match_cards(matches, results_lookup=None):
+    parts = ["<div class='match-list'>"]
+    for m in matches:
+        score = find_match_result(m, results_lookup)
+        score_html = f"<div class='match-card-score'><span class='match-card-score-pill'>{escape_html(score)}</span></div>" if score else ""
+        parts.append(f"<div class='match-card'><div class='match-card-date'>{escape_html(m['date'])}</div><div class='match-card-main'><div class='match-card-time'>{escape_html(m['time'])} h</div><div class='match-card-title'>{escape_html(m['match'])}</div><div class='match-card-group'>{escape_html(m['group'])}</div></div>{score_html}</div>")
+    parts.append("</div>")
+    return ''.join(parts)
 
-def render_group_stage_periods_html():
+def render_group_stage_periods_html(results_lookup=None):
     parts = ["<div class='group-stage-accordion'>"]
     for p in GROUP_STAGE_PERIODS:
         title = f"{p['date_range']} · {p['title']}"
-        parts.append(f"<details class='period-details'><summary class='period-summary'>{escape_html(title)}</summary><div class='period-body'><div class='phase-head-summary' style='margin:.1rem 0 .5rem 0;'>{escape_html(p['subtitle'])}</div>{render_match_cards(p['matches'])}</div></details>")
+        parts.append(f"<details class='period-details'><summary class='period-summary'>{escape_html(title)}</summary><div class='period-body'><div class='phase-head-summary' style='margin:.1rem 0 .5rem 0;'>{escape_html(p['subtitle'])}</div>{render_match_cards(p['matches'], results_lookup)}</div></details>")
     parts.append("</div>")
     return ''.join(parts)
 
@@ -262,14 +386,14 @@ def render_tail_phase_cards():
     parts.append("</div>")
     return ''.join(parts)
 
-def render_calendar_content():
+def render_calendar_content(results_lookup=None):
     colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
     parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026</div><div class='calendar-timeline'>"]
     for idx, node in enumerate(TIMELINE_NODES):
         accent = colors[idx % len(colors)]
         parts.append(f"<div class='timeline-node'><div class='timeline-icon' style='background:{accent};'>{escape_html(node['icon'])}</div><div class='timeline-phase'>{escape_html(node['phase'])}</div><div class='timeline-range'>{escape_html(node['range'])}</div></div>")
     parts.append("</div></div>")
-    return ''.join(parts) + render_group_stage_periods_html() + render_tail_phase_cards()
+    return ''.join(parts) + render_group_stage_periods_html(results_lookup) + render_tail_phase_cards()
 
 def render_level_selection_chart(df):
     levels = [lvl for lvl in get_levels(df) if lvl in LEVEL_TEAMS] or list(LEVEL_TEAMS.keys())
@@ -425,16 +549,22 @@ def refresh_data():
 try:
     resumen_df = load_sheet('Resumen de Apuestas', header=0)
     puntos_raw = load_sheet('Puntos', header=None)
+    fase_grupos_raw = load_sheet('Fase de Grupos', header=None)
+    try:
+        eliminatorias_raw = load_sheet('Cuadro de Eliminatorias', header=None)
+    except Exception:
+        eliminatorias_raw = pd.DataFrame()
     classification_df = parse_classification(puntos_raw)
     selection_points = parse_selection_points(puntos_raw)
+    calendar_results_lookup = build_calendar_results_lookup(parse_match_results_sheet(fase_grupos_raw), parse_match_results_sheet(eliminatorias_raw))
     classification_html = render_classification_block(classification_df, resumen_df, selection_points)
-    calendar_html = render_calendar_content()
+    calendar_html = render_calendar_content(calendar_results_lookup)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     chart_html = render_level_selection_chart(resumen_df)
     total_porras = count_entries(resumen_df)
 except Exception:
-    classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame()
-    classification_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
+    classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame(); calendar_results_lookup = {}
+    classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); similarity_html = ''; chart_html = ''; total_porras = 0
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -485,8 +615,8 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .period-summary {{ border-left:6px solid {C_PRIMARY}; }} .participant-summary {{ border-left:6px solid {C_PRIMARY_DARK}; font-size:1rem; line-height:1.25; min-height:56px; display:flex; align-items:center; }}
 .period-summary::-webkit-details-marker, .participant-summary::-webkit-details-marker {{ display:none; }} .period-body, .participant-body {{ padding:.8rem 1rem 1rem; }}
 .phase-head-summary {{ color:{C_GRAY_DARK}; font-weight:700; font-size:.83rem; margin-top:.12rem; line-height:1.3; }}
-.match-list {{ display:flex; flex-direction:column; gap:.48rem; margin-top:.25rem; }} .match-card {{ display:grid; grid-template-columns:90px 1fr; gap:.7rem; background:rgba(50,125,142,.03); border:1px solid rgba(50,125,142,.08); border-radius:16px; padding:.58rem .7rem; }}
-.match-card-date {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.82rem; line-height:1.2; }} .match-card-time {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.9rem; line-height:1.15; }} .match-card-title {{ color:{C_GRAY_DARK}; font-weight:800; font-size:.88rem; line-height:1.25; margin-top:.05rem; }} .match-card-group {{ color:{C_GRAY}; font-weight:700; font-size:.79rem; line-height:1.28; margin-top:.08rem; }}
+.match-list {{ display:flex; flex-direction:column; gap:.48rem; margin-top:.25rem; }} .match-card {{ display:grid; grid-template-columns:90px 1fr auto; gap:.7rem; align-items:center; background:rgba(50,125,142,.03); border:1px solid rgba(50,125,142,.08); border-radius:16px; padding:.58rem .7rem; }}
+.match-card-date {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.82rem; line-height:1.2; }} .match-card-main {{ min-width:0; }} .match-card-time {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.9rem; line-height:1.15; }} .match-card-title {{ color:{C_GRAY_DARK}; font-weight:800; font-size:.88rem; line-height:1.25; margin-top:.05rem; }} .match-card-group {{ color:{C_GRAY}; font-weight:700; font-size:.79rem; line-height:1.28; margin-top:.08rem; }} .match-card-score {{ justify-self:end; }} .match-card-score-pill {{ display:inline-flex; align-items:center; justify-content:center; min-width:54px; padding:.28rem .52rem; border-radius:999px; background:rgba(242,142,0,.12); color:{C_SECONDARY_DARK}; font-weight:900; font-size:.92rem; line-height:1; white-space:nowrap; border:1px solid rgba(242,142,0,.18); }}
 .calendar-tail-grid, .affinity-grid, .levels-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1rem; }}
 .phase-card, .affinity-card, .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04); padding:1rem; }}
 .phase-head-main {{ display:flex; align-items:center; gap:.45rem; }} .phase-head-title, .affinity-card-title, .level-name {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; }} .phase-head-range {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.92rem; margin-top:.22rem; }}
