@@ -170,13 +170,34 @@ def render_participant_picks_html(choices, levels, selection_points=None):
 def analyze_similarity(df):
     records, levels = get_bet_records(df)
     if not records or not levels:
-        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels), 'participaciones': 0}
+        return {'exact_groups': [], 'top_pairs': [], 'near_clone_pairs': 0, 'max_matches': 0, 'levels_count': len(levels), 'participaciones': 0, 'fully_unique_participants': [], 'fully_unique_count': 0}
     groups = {}
     for rec in records:
         key = ' || '.join(rec['choices'][level] for level in levels)
         groups.setdefault(key, []).append(rec['participante'])
     exact_groups = [{'participantes': ps, 'repeticiones': len(ps)} for ps in groups.values() if len(ps) > 1]
     exact_groups.sort(key=lambda x: (-x['repeticiones'], ', '.join(x['participantes'])))
+
+    level_choice_counts = {level: {} for level in levels}
+    for rec in records:
+        for level in levels:
+            choice = str(rec['choices'].get(level, '')).strip()
+            if not choice:
+                continue
+            level_choice_counts[level][choice] = level_choice_counts[level].get(choice, 0) + 1
+
+    fully_unique_participants = []
+    for rec in records:
+        all_unique = True
+        for level in levels:
+            choice = str(rec['choices'].get(level, '')).strip()
+            if not choice or level_choice_counts[level].get(choice, 0) != 1:
+                all_unique = False
+                break
+        if all_unique:
+            fully_unique_participants.append(rec['participante'])
+    fully_unique_participants = sorted(fully_unique_participants, key=lambda x: str(x).strip().casefold())
+
     pair_scores = []
     for i in range(len(records)):
         for j in range(i+1, len(records)):
@@ -191,10 +212,10 @@ def analyze_similarity(df):
             pair_scores.append({'a': a['participante'], 'b': b['participante'], 'matches': matches, 'diff_levels': diff})
     pair_scores.sort(key=lambda x: (-x['matches'], x['a'], x['b']))
     non_exact = [p for p in pair_scores if p['matches'] < len(levels)]
-    return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records)}
+    return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records), 'fully_unique_participants': fully_unique_participants, 'fully_unique_count': len(fully_unique_participants)}
 
 def render_similarity_block(ins):
-    lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0)
+    lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0); fup = ins.get('fully_unique_participants', []); fuc = ins.get('fully_unique_count', 0)
     if eg:
         html = ["<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>Sí, ha habido porras espejo.</b></div>"]
         for dup in eg[:4]:
@@ -210,7 +231,16 @@ def render_similarity_block(ins):
         html.append("</div>"); pair = ''.join(html)
     else:
         pair = "<div class='affinity-card'><div class='affinity-card-title'>Las porras más parecidas</div><div class='affinity-item'>No hay suficientes datos para detectar afinidades destacables entre porras.</div></div>"
-    return f"<div class='analysis-box'><div class='affinity-stats'><div class='affinity-stat'><div class='affinity-stat-value'>{part}</div><div class='affinity-stat-label'>Participaciones</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{len(eg)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{ncp}</div><div class='affinity-stat-label'>Parejas casi calcadas</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{mm}/{lc}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div></div><div class='affinity-grid'>{final}{pair}</div></div>"
+    if fup:
+        html = ["<div class='affinity-card'><div class='affinity-card-title'>Porras totalmente únicas</div><div class='affinity-item'><b>Sí, hay participantes cuyas 8 selecciones son únicas y no coinciden ninguna con ningún otro participante.</b></div>"]
+        preview = fup[:8]
+        html.append(f"<div class='affinity-item'>{', '.join(escape_html(p) for p in preview)}</div>")
+        if len(fup) > 8:
+            html.append(f"<div class='affinity-item'><span class='affinity-muted'>Y {len(fup) - 8} participante(s) más con porra totalmente única.</span></div>")
+        html.append("</div>"); unique_html = ''.join(html)
+    else:
+        unique_html = "<div class='affinity-card'><div class='affinity-card-title'>Porras totalmente únicas</div><div class='affinity-item'><b>No hay ningún participante con las 8 selecciones completamente únicas.</b></div><div class='affinity-item'>Al menos una de las 8 selecciones de cada participante coincide con la de otra persona.</div></div>"
+    return f"<div class='analysis-box'><div class='affinity-stats'><div class='affinity-stat'><div class='affinity-stat-value'>{part}</div><div class='affinity-stat-label'>Participaciones</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{len(eg)}</div><div class='affinity-stat-label'>Grupos con porra idéntica</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{fuc}</div><div class='affinity-stat-label'>Porras totalmente únicas</div></div><div class='affinity-stat'><div class='affinity-stat-value'>{mm}/{lc}</div><div class='affinity-stat-label'>Coincidencia máxima detectada</div></div></div><div class='affinity-grid'>{final}{pair}{unique_html}</div></div>"
 
 def render_match_cards(matches):
     return "<div class='match-list'>" + ''.join([f"<div class='match-card'><div class='match-card-date'>{escape_html(m['date'])}</div><div class='match-card-main'><div class='match-card-time'>{escape_html(m['time'])} h</div><div class='match-card-title'>{escape_html(m['match'])}</div><div class='match-card-group'>{escape_html(m['group'])}</div></div></div>" for m in matches]) + "</div>"
