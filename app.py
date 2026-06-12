@@ -156,6 +156,36 @@ def get_bet_records(df: pd.DataFrame):
         work[level] = work[level].fillna('').astype(str).str.strip()
     return [{'participante': row['PARTICIPANTE'], 'choices': {level: row[level] for level in levels}} for _, row in work[['PARTICIPANTE'] + levels].iterrows()], levels
 
+
+def build_participant_selection_lookup(df: pd.DataFrame, participant_level_points=None):
+    records, levels = get_bet_records(df)
+    participant_level_points = participant_level_points or {}
+    lookup = {}
+    for rec in records:
+        raw_name = str(rec.get('participante', '')).strip()
+        if not raw_name:
+            continue
+        lookup[normalize_person_key(raw_name)] = {
+            'participante': raw_name,
+            'choices': rec.get('choices', {}),
+            'points_by_level': participant_level_points.get(normalize_person_key(raw_name), {})
+        }
+    return lookup, levels
+
+
+def render_participant_picks_html(choices, levels, points_by_level=None):
+    points_by_level = points_by_level or {}
+    parts = ["<div class='participant-picks'>"]
+    for level in levels:
+        tv = choices.get(level, '') if isinstance(choices, dict) else ''
+        team = escape_html(tv) if tv else '—'
+        color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
+        pts_val = points_by_level.get(normalize_level_key(level), '')
+        pts_html = escape_html(pts_val) if pts_val != '' else ''
+        parts.append(f"<div class='pick-chip'><span class='pick-main'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span></span><span class='pick-points'>{pts_html}</span></div>")
+    parts.append("</div>")
+    return ''.join(parts)
+
 def analyze_similarity(df):
     records, levels = get_bet_records(df)
     if not records or not levels:
@@ -257,27 +287,29 @@ def render_participant_selection_block(df, participant_level_points=None):
         raw_name = str(rec['participante']).strip()
         name = escape_html(raw_name)
         pts_by_level = participant_level_points.get(normalize_person_key(raw_name), {})
-        parts.append(f"<details class='participant-details'><summary class='participant-summary'>{name}</summary><div class='participant-body'><div class='participant-picks'>")
-        for level in levels:
-            tv = rec['choices'].get(level, '')
-            team = escape_html(tv) if tv else '—'
-            color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
-            pts_val = pts_by_level.get(normalize_level_key(level), '')
-            pts_html = escape_html(pts_val) if pts_val != '' else ''
-            parts.append(f"<div class='pick-chip'><span class='pick-main'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span></span><span class='pick-points'>{pts_html}</span></div>")
-        parts.append("</div></div></details>")
+        chips_html = render_participant_picks_html(rec.get('choices', {}), levels, pts_by_level)
+        parts.append(f"<details class='participant-details'><summary class='participant-summary'>{name}</summary><div class='participant-body'>{chips_html}</div></details>")
     parts.append("</div>")
     return ''.join(parts)
 
-def render_classification_block(df):
+def render_classification_block(df, bets_df=None, participant_level_points=None):
     if df is None or df.empty:
         return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay datos suficientes para mostrar la clasificación.</div></div>"
+    participant_lookup, levels = build_participant_selection_lookup(bets_df, participant_level_points) if bets_df is not None else ({}, [])
     parts = ["<div class='classification-board'>"]
     for _, row in df.iterrows():
         pos = int(row['POS_ORDENADA']) if pd.notna(row['POS_ORDENADA']) else '-'
         badge_class = 'gold' if pos == 1 else 'silver' if pos == 2 else 'bronze' if pos == 3 else ''
-        name = escape_html(row['PARTICIPANTE']); points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
-        parts.append(f"<div class='classification-row'><div class='classification-pos {badge_class}'>{pos}</div><div class='classification-name'>{name}</div><div class='classification-points-wrap'><div class='classification-points-label'>Puntos</div><div class='classification-points'>{points}</div></div></div>")
+        raw_name = str(row['PARTICIPANTE']).strip()
+        name = escape_html(raw_name)
+        points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
+        row_html = f"<div class='classification-row'><div class='classification-pos {badge_class}'>{pos}</div><div class='classification-name'>{name}</div><div class='classification-points-wrap'><div class='classification-points-label'>Puntos</div><div class='classification-points'>{points}</div></div></div>"
+        pdata = participant_lookup.get(normalize_person_key(raw_name))
+        if pdata and levels:
+            picks_html = render_participant_picks_html(pdata.get('choices', {}), levels, pdata.get('points_by_level', {}))
+            parts.append(f"<details class='classification-details'><summary class='classification-summary'>{row_html}</summary><div class='classification-body'>{picks_html}</div></details>")
+        else:
+            parts.append(row_html)
     parts.append("</div>")
     return ''.join(parts)
 
@@ -289,7 +321,7 @@ try:
     puntos_raw = load_sheet('Puntos', header=None)
     classification_df = parse_classification(puntos_raw)
     participant_level_points = parse_participant_level_points(puntos_raw)
-    classification_html = render_classification_block(classification_df)
+    classification_html = render_classification_block(classification_df, resumen_df, participant_level_points)
     participant_selection_html = render_participant_selection_block(resumen_df, participant_level_points)
     calendar_html = render_calendar_content()
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
@@ -336,7 +368,7 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .classification-pos.silver {{ background:linear-gradient(135deg, rgba(156,155,155,.22) 0%, rgba(210,210,210,.26) 100%); color:{C_GRAY_DARK}; border-color:rgba(112,111,111,.20); }}
 .classification-pos.bronze {{ background:linear-gradient(135deg, rgba(204,97,0,.20) 0%, rgba(242,142,0,.18) 100%); color:{C_SECONDARY_DARK}; border-color:rgba(204,97,0,.22); }}
 .classification-name {{ color:{C_PRIMARY_DARK}; font-size:1.04rem; font-weight:900; line-height:1.25; overflow-wrap:anywhere; }}
-.classification-points-wrap {{ text-align:right; }} .classification-points-label {{ color:{C_GRAY}; font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }} .classification-points {{ color:{C_SECONDARY_DARK}; font-size:1.5rem; font-weight:900; line-height:1.05; }}
+.classification-points-wrap {{ text-align:right; }} .classification-points-label {{ color:{C_GRAY}; font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }} .classification-points {{ color:{C_SECONDARY_DARK}; font-size:1.5rem; font-weight:900; line-height:1.05; }} .classification-details {{ background:transparent; border:none; box-shadow:none; overflow:visible; }} .classification-summary {{ list-style:none; cursor:pointer; display:block; }} .classification-summary::-webkit-details-marker {{ display:none; }} .classification-details[open] .classification-row {{ border-bottom-left-radius:0; border-bottom-right-radius:0; margin-bottom:0; box-shadow:0 6px 12px rgba(0,0,0,.035); }} .classification-body {{ background:white; border:1px solid rgba(50,125,142,.14); border-top:none; border-radius:0 0 20px 20px; padding:.2rem 1rem 1rem 5.55rem; margin-top:-.18rem; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
 .calendar-timeline {{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.7rem; margin:.2rem 0 .1rem; }}
 .timeline-node {{ position:relative; text-align:center; padding:.3rem; }} .timeline-node:not(:last-child)::after {{ content:''; position:absolute; right:-.42rem; top:19px; width:.84rem; height:3px; background:rgba(50,125,142,.18); }}
 .timeline-icon {{ width:38px; height:38px; border-radius:999px; display:flex; align-items:center; justify-content:center; margin:0 auto .35rem; font-size:1rem; }} .timeline-phase {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:.84rem; line-height:1.2; }} .timeline-range {{ color:{C_GRAY}; font-weight:700; font-size:.75rem; line-height:1.2; margin-top:.12rem; }}
@@ -357,8 +389,8 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .participant-accordion {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.85rem; margin-top:.25rem; align-items:start; }} .participant-details {{ height:fit-content; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
 .pick-chip {{ display:flex; align-items:center; justify-content:space-between; gap:.55rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-main {{ display:flex; align-items:center; gap:.45rem; min-width:0; flex:1 1 auto; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; min-width:0; flex:1 1 auto; }} .pick-points {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; line-height:1; min-width:28px; text-align:right; flex:0 0 auto; padding-right:.18rem; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
-@media (max-width:980px) {{ .premios-grid, .levels-grid, .affinity-grid, .calendar-tail-grid, .calendar-timeline, .affinity-stats {{ grid-template-columns:1fr; }} .participant-accordion {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .classification-row {{ grid-template-columns:64px 1fr 105px; gap:.8rem; }} .timeline-node:not(:last-child)::after {{ display:none; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo-badge {{ padding:.35rem .45rem; border-radius:20px; }} .hero-logo {{ width:104px; height:104px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
-@media (max-width:640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:56px 1fr 92px; gap:.7rem; padding:.78rem .8rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-name {{ font-size:.95rem; }} .classification-points {{ font-size:1.25rem; }} .hero-logo-slot {{ width:90px; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
+@media (max-width:980px) {{ .premios-grid, .levels-grid, .affinity-grid, .calendar-tail-grid, .calendar-timeline, .affinity-stats {{ grid-template-columns:1fr; }} .participant-accordion {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .classification-row {{ grid-template-columns:64px 1fr 105px; gap:.8rem; }} .classification-body {{ padding-left:4.95rem; }} .timeline-node:not(:last-child)::after {{ display:none; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo-badge {{ padding:.35rem .45rem; border-radius:20px; }} .hero-logo {{ width:104px; height:104px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} }}
+@media (max-width:640px) {{ .hero-title-wrap {{ grid-template-columns:90px 1fr 90px; column-gap:.45rem; max-width:100%; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:56px 1fr 92px; gap:.7rem; padding:.78rem .8rem; }} .classification-body {{ padding-left:1rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-name {{ font-size:.95rem; }} .classification-points {{ font-size:1.25rem; }} .hero-logo-slot {{ width:90px; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:76px; height:76px; }} .hero-title-line1 {{ font-size:1.45rem; }} .hero-title-line2 {{ font-size:1.8rem; }} .match-card {{ grid-template-columns:78px 1fr; gap:.55rem; }} .pick-team {{ font-size:.8rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
