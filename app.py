@@ -398,14 +398,13 @@ try:
     classification_df = parse_classification(puntos_raw)
     selection_points = parse_selection_points(puntos_raw)
     classification_html = render_classification_block(classification_df, resumen_df, selection_points)
-    participant_selection_html = render_participant_selection_block(resumen_df, selection_points)
     calendar_html = render_calendar_content()
     similarity_html = render_similarity_block(analyze_similarity(resumen_df))
     chart_html = render_level_selection_chart(resumen_df)
     total_porras = count_entries(resumen_df)
 except Exception:
     classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame()
-    classification_html = ''; participant_selection_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
+    classification_html = ''; calendar_html = render_calendar_content(); similarity_html = ''; chart_html = ''; total_porras = 0
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -474,25 +473,20 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Podium provisional</div><div class='premios-sub'>El <b>1er puesto</b> recibe el 70% de lo recaudado y el <b>2º puesto</b> el 30%. Si hay empate en el <b>1er puesto</b>, ese premio se reparte entre las personas empatadas y <b>no hay premio para el 2º puesto</b>.</div>{podium_html}</div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Participantes", "Calendario", "Curiosidades", "Selección equipos"])
+tabs = st.tabs(["Clasificación", "Calendario", "Curiosidades", "Selección equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar la clasificación.")
 with tabs[1]:
-    if participant_selection_html:
-        st.markdown(participant_selection_html, unsafe_allow_html=True)
-    else:
-        st.info("Todavía no hay suficientes registros para mostrar la selección de participantes.")
-with tabs[2]:
     st.markdown(calendar_html, unsafe_allow_html=True)
-with tabs[3]:
+with tabs[2]:
     if similarity_html:
         st.markdown(similarity_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar el radar de afinidades.")
-with tabs[4]:
+with tabs[3]:
     if chart_html:
         st.markdown(chart_html, unsafe_allow_html=True)
     else:
