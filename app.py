@@ -296,7 +296,9 @@ def render_classification_block(df, bets_df=None, selection_points=None):
 
 
 def format_eur(amount):
-    return f"{float(amount):.2f} €"
+    formatted = f"{float(amount):,.2f}"
+    formatted = formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
+    return f"{formatted} €"
 
 
 def summarize_names(names, limit=3):
@@ -313,67 +315,51 @@ def build_podium_data(classification_df, total_entries, price_per_entry=10):
     first_total = round(recaudacion_total * 0.70, 2)
     second_total = round(recaudacion_total * 0.30, 2)
 
-    default = [
-        {'rank': 1, 'title': '1er puesto', 'names': [], 'points': 0, 'total_prize': first_total, 'per_prize': first_total, 'tie_count': 0, 'badge': 'gold', 'note': '70% del bote'},
-        {'rank': 2, 'title': '2º puesto', 'names': [], 'points': 0, 'total_prize': second_total, 'per_prize': second_total, 'tie_count': 0, 'badge': 'silver', 'note': '30% del bote'},
-        {'rank': 3, 'title': '3er puesto', 'names': [], 'points': 0, 'total_prize': 0.0, 'per_prize': 0.0, 'tie_count': 0, 'badge': 'bronze', 'note': 'Sin premio'}
-    ]
+    data = []
     if classification_df is None or classification_df.empty:
-        return default
+        return [
+            {'rank': 1, 'title': '1er puesto', 'names': [], 'per_prize': first_total, 'tie_count': 0, 'badge': 'gold', 'note': '70% del bote'},
+            {'rank': 2, 'title': '2º puesto', 'names': [], 'per_prize': second_total, 'tie_count': 0, 'badge': 'silver', 'note': '30% del bote'},
+            {'rank': 3, 'title': '3er puesto', 'names': [], 'per_prize': 0.0, 'tie_count': 0, 'badge': 'bronze', 'note': 'Llorería'}
+        ]
 
-    groups = []
+    groups = {}
     for rank in [1, 2, 3]:
         subset = classification_df[classification_df['POS_ORDENADA'] == rank].copy()
         if subset.empty:
-            groups.append(None)
+            groups[rank] = None
             continue
-        points_val = subset['PUNTOS_TOTALES'].iloc[0]
-        try:
-            points_val = int(points_val)
-        except Exception:
-            points_val = 0
-        names = subset['PARTICIPANTE'].astype(str).str.strip().tolist()
-        groups.append({'rank': rank, 'names': names, 'points': points_val, 'size': len(names)})
+        groups[rank] = {
+            'names': subset['PARTICIPANTE'].astype(str).str.strip().tolist(),
+            'size': int(len(subset))
+        }
 
-    first_group = groups[0]
-    second_group = groups[1]
-    third_group = groups[2]
-
-    data = []
-    for rank, group, badge in [(1, first_group, 'gold'), (2, second_group, 'silver'), (3, third_group, 'bronze')]:
+    for rank, badge, title in [(1, 'gold', '1er puesto'), (2, 'silver', '2º puesto'), (3, 'bronze', '3er puesto')]:
+        group = groups.get(rank)
         if group is None:
-            data.append({'rank': rank, 'title': f'{rank}º puesto' if rank != 1 else '1er puesto', 'names': [], 'points': 0, 'total_prize': 0.0, 'per_prize': 0.0, 'tie_count': 0, 'badge': badge, 'note': 'Sin participantes'})
+            note = 'Llorería' if rank == 3 else ('70% del bote' if rank == 1 else '30% del bote')
+            per_prize = 0.0 if rank == 3 else (first_total if rank == 1 else second_total)
+            data.append({'rank': rank, 'title': title, 'names': [], 'per_prize': per_prize, 'tie_count': 0, 'badge': badge, 'note': note})
             continue
+
         total_prize = 0.0
-        note = 'Sin premio'
+        note = 'Llorería' if rank == 3 else 'Sin premio'
         if rank == 1:
             total_prize = first_total
             note = '70% del bote'
         elif rank == 2:
-            if first_group and first_group['size'] > 1:
+            if groups.get(1) and groups[1]['size'] > 1:
                 total_prize = 0.0
                 note = 'Sin premio por empate en 1º'
             else:
                 total_prize = second_total
                 note = '30% del bote'
-        per_prize = round(total_prize / group['size'], 2) if group['size'] else 0.0
-        if rank == 3:
-            per_prize = 0.0
-            total_prize = 0.0
-            note = 'Sin premio'
-        elif group['size'] > 1 and total_prize > 0:
+        per_prize = round(total_prize / group['size'], 2) if group['size'] and rank in (1, 2) else 0.0
+        if group['size'] > 1 and total_prize > 0:
             note = f"Premio repartido entre {group['size']} participantes"
-        data.append({
-            'rank': rank,
-            'title': '1er puesto' if rank == 1 else '2º puesto' if rank == 2 else '3er puesto',
-            'names': group['names'],
-            'points': group['points'],
-            'total_prize': total_prize,
-            'per_prize': per_prize,
-            'tie_count': group['size'],
-            'badge': badge,
-            'note': note
-        })
+        if rank == 3:
+            note = 'Llorería'
+        data.append({'rank': rank, 'title': title, 'names': group['names'], 'per_prize': per_prize, 'tie_count': group['size'], 'badge': badge, 'note': note})
     return data
 
 
@@ -387,7 +373,6 @@ def render_podium_html(classification_df, total_entries, price_per_entry=10):
         title = item.get('title', f'{rank}º puesto')
         names_html = summarize_names(item.get('names', []), 3)
         amount_html = format_eur(item.get('per_prize', 0.0))
-        points_label = f"{item.get('points', 0)} pts" if item.get('names') else 'Sin datos'
         shared_label = ''
         if item.get('tie_count', 0) > 1 and item.get('per_prize', 0) > 0:
             shared_label = f"<div class='podium-shared'>Empate entre {item['tie_count']} participantes</div>"
@@ -396,7 +381,6 @@ def render_podium_html(classification_df, total_entries, price_per_entry=10):
             f"<div class='podium-cup'>🏆</div>"
             f"<div class='podium-position'>{title}</div>"
             f"<div class='podium-names'>{names_html}</div>"
-            f"<div class='podium-points'>{points_label}</div>"
             f"<div class='podium-amount'>{amount_html}</div>"
             f"{shared_label}"
             f"<div class='podium-note'>{escape_html(item.get('note',''))}</div>"
@@ -448,7 +432,7 @@ style = f"""
 .premios-sub {{ color:{C_GRAY_DARK}; font-size:.93rem; font-weight:600; line-height:1.45; text-align:center; margin-bottom:.85rem; }}
 .premios-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }}
 .premio-card {{ border-radius:22px; padding:1rem; text-align:center; overflow:hidden; }} .premio-card--oro {{ background:linear-gradient(135deg, rgba(241,200,49,.18) 0%, rgba(242,142,0,.15) 100%); border:1px solid rgba(242,142,0,.25); }} .premio-card--plata {{ background:linear-gradient(135deg, rgba(112,111,111,.12) 0%, rgba(156,155,155,.16) 100%); border:1px solid rgba(112,111,111,.2); }}
-.premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }} .premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }} .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }} .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }} .podium-wrap {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; align-items:end; margin-top:.2rem; }} .podium-step {{ position:relative; border-radius:24px 24px 18px 18px; padding:1rem .95rem 1.05rem; text-align:center; border:1px solid rgba(50,125,142,.14); box-shadow:0 10px 24px rgba(0,0,0,.05); min-height:248px; display:flex; flex-direction:column; justify-content:flex-start; }} .podium-step--rank-1 {{ min-height:286px; transform:translateY(-8px); }} .podium-step--rank-2, .podium-step--rank-3 {{ min-height:228px; }} .podium-step--gold {{ background:linear-gradient(180deg, rgba(241,200,49,.18) 0%, rgba(255,248,230,.98) 100%); }} .podium-step--silver {{ background:linear-gradient(180deg, rgba(156,155,155,.16) 0%, rgba(248,248,248,.98) 100%); }} .podium-step--bronze {{ background:linear-gradient(180deg, rgba(242,142,0,.10) 0%, rgba(255,250,244,.98) 100%); }} .podium-cup {{ font-size:2.65rem; line-height:1; margin-bottom:.2rem; }} .podium-position {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; }} .podium-names {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; line-height:1.35; margin:.6rem 0 .35rem; min-height:3.1rem; display:flex; align-items:center; justify-content:center; }} .podium-points {{ color:{C_GRAY}; font-size:.82rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }} .podium-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.35rem 0 .2rem; line-height:1.05; }} .podium-shared {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:800; line-height:1.25; margin-bottom:.2rem; }} .podium-note {{ color:{C_GRAY_DARK}; font-size:.88rem; font-weight:600; line-height:1.35; margin-top:auto; padding-top:.4rem; }}
+.premio-icon {{ font-size:3rem; line-height:1; margin-bottom:.35rem; }} .premio-pos {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; }} .premio-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.25rem 0; }} .premio-note {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:600; line-height:1.35; }} .podium-wrap {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; align-items:end; margin-top:.2rem; }} .podium-step {{ position:relative; border-radius:24px 24px 18px 18px; padding:1rem .95rem 1.05rem; text-align:center; border:1px solid rgba(50,125,142,.14); box-shadow:0 10px 24px rgba(0,0,0,.05); min-height:248px; display:flex; flex-direction:column; justify-content:flex-start; }} .podium-step--rank-1 {{ min-height:286px; transform:translateY(-8px); }} .podium-step--rank-2, .podium-step--rank-3 {{ min-height:228px; }} .podium-step--gold {{ background:linear-gradient(180deg, rgba(241,200,49,.18) 0%, rgba(255,248,230,.98) 100%); }} .podium-step--silver {{ background:linear-gradient(180deg, rgba(156,155,155,.16) 0%, rgba(248,248,248,.98) 100%); }} .podium-step--bronze {{ background:linear-gradient(180deg, rgba(242,142,0,.10) 0%, rgba(255,250,244,.98) 100%); }} .podium-cup {{ font-size:2.65rem; line-height:1; margin-bottom:.2rem; }} .podium-position {{ color:{C_PRIMARY_DARK}; font-size:1.02rem; font-weight:900; }} .podium-names {{ color:{C_PRIMARY_DARK}; font-size:1rem; font-weight:900; line-height:1.35; margin:.6rem 0 .45rem; min-height:3.1rem; display:flex; align-items:center; justify-content:center; }} .podium-amount {{ color:{C_SECONDARY_DARK}; font-size:1.9rem; font-weight:900; margin:.1rem 0 .2rem; line-height:1.05; }} .podium-shared {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:800; line-height:1.25; margin-bottom:.2rem; }} .podium-note {{ color:{C_GRAY_DARK}; font-size:.88rem; font-weight:600; line-height:1.35; margin-top:auto; padding-top:.4rem; }}
 [data-baseweb="tab-list"] {{ gap:.28rem; margin-top:1rem; margin-bottom:.55rem; flex-wrap:nowrap; overflow-x:hidden; scrollbar-width:none; }}
 [data-baseweb="tab-list"]::-webkit-scrollbar {{ display:none !important; }}
 [data-baseweb="tab"] {{ background:rgba(50,125,142,.035)!important; border:1px solid rgba(50,125,142,.14)!important; border-radius:999px!important; padding:.46rem .52rem!important; min-height:auto!important; min-width:0!important; flex:1 1 0!important; box-shadow:0 8px 18px rgba(0,0,0,.04); }}
