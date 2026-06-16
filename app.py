@@ -504,6 +504,41 @@ def build_best_options_by_level(selection_points=None):
     return best_by_level
 
 
+def build_perfect_selection_summary(df: pd.DataFrame, selection_points=None, best_options_by_level=None):
+    selection_points = selection_points or {}
+    best_options_by_level = best_options_by_level or build_best_options_by_level(selection_points)
+    total_possible = sum(int(item.get('max_points', 0)) for item in best_options_by_level)
+    records, levels = get_bet_records(df) if df is not None else ([], [])
+    participant_scores = []
+    for rec in records:
+        participante = str(rec.get('participante', '')).strip()
+        if not participante:
+            continue
+        achieved = 0
+        for level in levels:
+            team_text = str(rec.get('choices', {}).get(level, '')).replace('\xa0', ' ').strip()
+            pts_raw = selection_points.get(normalize_selection_key(team_text), '') if team_text else ''
+            try:
+                achieved += int(pts_raw)
+            except Exception:
+                achieved += 0
+        participant_scores.append({'participante': participante, 'achieved': int(achieved)})
+    if participant_scores:
+        max_achieved = max(item['achieved'] for item in participant_scores)
+        closest = [item for item in participant_scores if item['achieved'] == max_achieved]
+        closest.sort(key=lambda x: x['participante'])
+    else:
+        max_achieved = 0
+        closest = []
+    percentage = round((max_achieved / total_possible) * 100, 1) if total_possible > 0 else 0.0
+    return {
+        'total_possible': int(total_possible),
+        'closest': closest,
+        'max_achieved': int(max_achieved),
+        'percentage': percentage,
+    }
+
+
 def analyze_similarity(df):
     records, levels = get_bet_records(df)
     if not records or not levels:
@@ -530,9 +565,10 @@ def analyze_similarity(df):
     non_exact = [p for p in pair_scores if p['matches'] < len(levels)]
     return {'exact_groups': exact_groups, 'top_pairs': non_exact[:5], 'near_clone_pairs': sum(1 for p in non_exact if p['matches'] >= max(len(levels)-1, 1)), 'max_matches': pair_scores[0]['matches'] if pair_scores else 0, 'levels_count': len(levels), 'participaciones': len(records)}
 
-def render_similarity_block(ins, best_options_by_level=None):
+def render_similarity_block(ins, best_options_by_level=None, perfect_summary=None):
     lc = ins.get('levels_count', 0); eg = ins.get('exact_groups', []); tp = ins.get('top_pairs', []); ncp = ins.get('near_clone_pairs', 0); mm = ins.get('max_matches', 0); part = ins.get('participaciones', 0)
     best_options_by_level = best_options_by_level or []
+    perfect_summary = perfect_summary or {'total_possible': 0, 'closest': [], 'max_achieved': 0, 'percentage': 0.0}
     if eg:
         html = ["<div class='affinity-card'><div class='affinity-card-title'>Resultado final: porras espejo</div><div class='affinity-item'><b>Sí, ha habido porras espejo.</b></div>"]
         for dup in eg[:4]:
@@ -557,6 +593,16 @@ def render_similarity_block(ins, best_options_by_level=None):
             best_items = item.get('best_items', [])
             teams_html = ' · '.join(f"<span class='best-option-team'>{escape_html(team_item.get('team', ''))}</span>" for team_item in best_items) if best_items else '—'
             html.append(f"<div class='best-option-row'><div class='best-option-head'><span class='best-option-level' style='background:{color};'>{level}</span><span class='best-option-points'>{max_points} pts</span></div><div class='best-option-values'>{teams_html}</div></div>")
+        total_possible = int(perfect_summary.get('total_possible', 0))
+        closest = perfect_summary.get('closest', []) or []
+        max_achieved = int(perfect_summary.get('max_achieved', 0))
+        percentage = float(perfect_summary.get('percentage', 0.0))
+        if closest:
+            closest_names = ' · '.join(escape_html(item.get('participante', '')) for item in closest)
+            closest_text = f"{closest_names} con {max_achieved} de {total_possible} puntos posibles ({percentage:.1f}%)."
+        else:
+            closest_text = 'Todavía no hay suficientes datos para identificar al participante más cercano a la perfección.'
+        html.append(f"<div class='best-summary-box'><div class='best-summary-line'><b>Puntuación máxima teórica:</b> {total_possible} puntos seleccionando la mejor selección de cada nivel.</div><div class='best-summary-line'><b>Participante más cercano a la perfección:</b> {closest_text}</div></div>")
         html.append("</div></div>"); best_html = ''.join(html)
     else:
         best_html = "<div class='affinity-card affinity-card--wide'><div class='affinity-card-title'>La mejor opción seleccionable por nivel</div><div class='affinity-item'>Todavía no hay datos suficientes para determinar la mejor selección de cada nivel.</div></div>"
@@ -777,12 +823,13 @@ try:
     classification_html = render_classification_block(classification_df, resumen_df, selection_points, team_stats_lookup, future_group_matches_lookup, team_matches_lookup)
     calendar_html = render_calendar_content(calendar_results_lookup)
     best_options_by_level = build_best_options_by_level(selection_points)
-    similarity_html = render_similarity_block(analyze_similarity(resumen_df), best_options_by_level)
+    perfect_summary = build_perfect_selection_summary(resumen_df, selection_points, best_options_by_level)
+    similarity_html = render_similarity_block(analyze_similarity(resumen_df), best_options_by_level, perfect_summary)
     chart_html = render_level_selection_chart(resumen_df)
     total_porras = count_entries(resumen_df)
 except Exception:
     classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame(); calendar_results_lookup = {}; team_stats_lookup = {}; team_matches_lookup = {}; future_group_matches_lookup = {}
-    classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); best_options_by_level = []; similarity_html = ''; chart_html = ''; total_porras = 0
+    classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); best_options_by_level = []; perfect_summary = {'total_possible': 0, 'closest': [], 'max_achieved': 0, 'percentage': 0.0}; similarity_html = ''; chart_html = ''; total_porras = 0
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -842,7 +889,7 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .phase-card, .affinity-card, .level-card {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:20px; overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04); padding:1rem; }}
 .phase-head-main {{ display:flex; align-items:center; gap:.45rem; }} .phase-head-title, .affinity-card-title, .level-name {{ color:{C_PRIMARY_DARK}; font-weight:900; font-size:1rem; }} .phase-head-range {{ color:{C_SECONDARY_DARK}; font-weight:900; font-size:.92rem; margin-top:.22rem; }}
 .analysis-box {{ background:white; border:1px solid rgba(50,125,142,.14); border-radius:24px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.05); }}
-.affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }} .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }} .affinity-stat-value {{ color:{C_SECONDARY_DARK}; font-size:1.6rem; font-weight:900; }} .affinity-stat-label {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:800; margin-top:.28rem; line-height:1.25; }} .affinity-item {{ color:{C_GRAY_DARK}; font-size:.92rem; line-height:1.45; font-weight:600; margin-bottom:.55rem; }} .affinity-item:last-child {{ margin-bottom:0; }} .affinity-muted {{ color:{C_GRAY}; }} .affinity-card--wide {{ grid-column:1 / -1; }} .best-options-list {{ display:flex; flex-direction:column; gap:.62rem; }} .best-option-row {{ background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:18px; padding:.72rem .82rem; }} .best-option-head {{ display:flex; align-items:center; justify-content:space-between; gap:.7rem; margin-bottom:.48rem; }} .best-option-level {{ color:white; font-size:.77rem; font-weight:900; border-radius:999px; padding:.18rem .55rem; white-space:nowrap; }} .best-option-points {{ color:{C_SECONDARY_DARK}; font-size:.86rem; font-weight:900; white-space:nowrap; }} .best-option-values {{ color:{C_PRIMARY_DARK}; font-size:.94rem; font-weight:800; line-height:1.35; overflow-wrap:anywhere; }} .best-option-team {{ display:inline; }}
+.affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }} .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }} .affinity-stat-value {{ color:{C_SECONDARY_DARK}; font-size:1.6rem; font-weight:900; }} .affinity-stat-label {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:800; margin-top:.28rem; line-height:1.25; }} .affinity-item {{ color:{C_GRAY_DARK}; font-size:.92rem; line-height:1.45; font-weight:600; margin-bottom:.55rem; }} .affinity-item:last-child {{ margin-bottom:0; }} .affinity-muted {{ color:{C_GRAY}; }} .affinity-card--wide {{ grid-column:1 / -1; }} .best-options-list {{ display:flex; flex-direction:column; gap:.62rem; }} .best-option-row {{ background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:18px; padding:.72rem .82rem; }} .best-option-head {{ display:flex; align-items:center; justify-content:space-between; gap:.7rem; margin-bottom:.48rem; }} .best-option-level {{ color:white; font-size:.77rem; font-weight:900; border-radius:999px; padding:.18rem .55rem; white-space:nowrap; }} .best-option-points {{ color:{C_SECONDARY_DARK}; font-size:.86rem; font-weight:900; white-space:nowrap; }} .best-option-values {{ color:{C_PRIMARY_DARK}; font-size:.94rem; font-weight:800; line-height:1.35; overflow-wrap:anywhere; }} .best-option-team {{ display:inline; }} .best-summary-box {{ background:rgba(0,74,95,.04); border:1px solid rgba(0,74,95,.08); border-radius:18px; padding:.8rem .9rem; margin-top:.2rem; }} .best-summary-line {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.45; font-weight:700; }} .best-summary-line + .best-summary-line {{ margin-top:.42rem; }}
 .level-card-title {{ margin-bottom:.6rem; line-height:1.25; }} .level-teams {{ font-weight:700; font-size:.84rem; color:#706F6F; margin-top:.18rem; line-height:1.35; }} .bar-row {{ margin-bottom:.58rem; }} .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }} .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }} .bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }} .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }} .bar-fill {{ height:100%; border-radius:999px; }}
 .participant-accordion {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.85rem; margin-top:.25rem; align-items:start; }} .participant-details {{ height:fit-content; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
 .pick-details {{ background:transparent; border:none; box-shadow:none; }} .pick-summary {{ list-style:none; cursor:pointer; display:block; }} .pick-summary::-webkit-details-marker {{ display:none; }} .pick-chip {{ display:flex; align-items:center; justify-content:space-between; gap:.55rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-summary .pick-chip {{ transition:background .18s ease, border-color .18s ease, box-shadow .18s ease; }} .pick-details[open] .pick-chip {{ background:rgba(50,125,142,.06); border-color:rgba(50,125,142,.16); box-shadow:0 4px 10px rgba(0,0,0,.03); }} .pick-main {{ display:flex; align-items:center; gap:.45rem; min-width:0; flex:1 1 auto; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; min-width:0; flex:1 1 auto; }} .pick-points {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:900; line-height:1; min-width:56px; text-align:right; flex:0 0 auto; padding-right:.18rem; white-space:nowrap; display:inline-flex; align-items:center; justify-content:flex-end; gap:.24rem; }} .pick-played-icons {{ display:inline-flex; align-items:center; gap:2px; }} .pick-played-ball {{ width:12px; height:12px; object-fit:contain; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.08)); }} .pick-points-value {{ white-space:nowrap; }} .pick-match-body {{ padding:.35rem .3rem 0 .3rem; display:flex; flex-direction:column; gap:.42rem; }} .pick-section-title {{ color:{C_PRIMARY_DARK}; font-size:.76rem; font-weight:900; letter-spacing:.02em; text-transform:uppercase; padding:.1rem .2rem 0; }} .pick-match-list {{ display:flex; flex-direction:column; gap:.34rem; }} .pick-match-card {{ background:white; border:1px solid rgba(50,125,142,.10); border-radius:16px; padding:.52rem .65rem; box-shadow:0 4px 10px rgba(0,0,0,.03); }} .pick-match-card--future {{ background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(245,250,251,1) 100%); }} .pick-match-card--path {{ background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,255,1) 100%); border-color:rgba(50,125,142,.08); }} .pick-match-top {{ display:flex; align-items:flex-start; justify-content:space-between; gap:.7rem; }} .pick-match-date {{ color:{C_GRAY}; font-size:.72rem; font-weight:800; line-height:1.2; }} .pick-match-score {{ color:{C_SECONDARY_DARK}; font-size:.95rem; font-weight:900; line-height:1; white-space:nowrap; }} .pick-match-phase {{ color:{C_PRIMARY_DARK}; font-size:.73rem; font-weight:800; line-height:1.2; white-space:nowrap; }} .pick-match-opponent {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:800; line-height:1.25; margin-top:.28rem; overflow-wrap:anywhere; }} .pick-match-empty {{ color:{C_GRAY_DARK}; font-size:.82rem; font-weight:700; line-height:1.35; padding:.15rem .2rem 0 .2rem; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
