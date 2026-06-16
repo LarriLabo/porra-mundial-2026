@@ -63,6 +63,24 @@ def load_sheet(sheet_name: str, header=0):
     data = download_bytes(make_download_url(SOURCE_URL))
     return pd.read_excel(io.BytesIO(data), sheet_name=sheet_name, header=header, engine='openpyxl')
 
+@st.cache_data(ttl=CACHE_MINUTES*60)
+def load_required_sheets():
+    data = download_bytes(make_download_url(SOURCE_URL))
+    xls = pd.ExcelFile(io.BytesIO(data), engine='openpyxl')
+    sheet_specs = {
+        'Resumen de Apuestas': 0,
+        'Puntos': None,
+        'Fase de Grupos': None,
+        'Cuadro de Eliminatorias': None,
+    }
+    loaded = {}
+    for sheet_name, header in sheet_specs.items():
+        if sheet_name in xls.sheet_names:
+            loaded[sheet_name] = xls.parse(sheet_name=sheet_name, header=header)
+        else:
+            loaded[sheet_name] = pd.DataFrame()
+    return loaded
+
 def escape_html(text):
     text = str(text)
     return (text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#39;'))
@@ -820,14 +838,14 @@ def render_podium_html(classification_df, total_entries, price_per_entry=10):
 def refresh_data():
     st.cache_data.clear(); st.rerun()
 
-try:
-    resumen_df = load_sheet('Resumen de Apuestas', header=0)
-    puntos_raw = load_sheet('Puntos', header=None)
-    fase_grupos_raw = load_sheet('Fase de Grupos', header=None)
-    try:
-        eliminatorias_raw = load_sheet('Cuadro de Eliminatorias', header=None)
-    except Exception:
-        eliminatorias_raw = pd.DataFrame()
+@st.cache_data(ttl=CACHE_MINUTES*60)
+def build_app_payload():
+    sheets = load_required_sheets()
+    resumen_df = sheets.get('Resumen de Apuestas', pd.DataFrame())
+    puntos_raw = sheets.get('Puntos', pd.DataFrame())
+    fase_grupos_raw = sheets.get('Fase de Grupos', pd.DataFrame())
+    eliminatorias_raw = sheets.get('Cuadro de Eliminatorias', pd.DataFrame())
+
     classification_df = parse_classification(puntos_raw)
     selection_points = parse_selection_points(puntos_raw)
     fase_grupos_results = parse_match_results_sheet(fase_grupos_raw)
@@ -844,14 +862,50 @@ try:
     similarity_html = render_similarity_block(analyze_similarity(resumen_df), best_options_by_level, perfect_summary)
     chart_html = render_level_selection_chart(resumen_df)
     total_porras = count_entries(resumen_df)
+    podium_html = render_podium_html(classification_df, total_porras, PRICE_PER_ENTRY)
+
+    return {
+        'classification_df': classification_df,
+        'selection_points': selection_points,
+        'resumen_df': resumen_df,
+        'calendar_results_lookup': calendar_results_lookup,
+        'team_stats_lookup': team_stats_lookup,
+        'team_matches_lookup': team_matches_lookup,
+        'future_group_matches_lookup': future_group_matches_lookup,
+        'classification_html': classification_html,
+        'calendar_html': calendar_html,
+        'best_options_by_level': best_options_by_level,
+        'perfect_summary': perfect_summary,
+        'similarity_html': similarity_html,
+        'chart_html': chart_html,
+        'total_porras': total_porras,
+        'podium_html': podium_html,
+    }
+
+try:
+    _payload = build_app_payload()
+    classification_df = _payload['classification_df']
+    selection_points = _payload['selection_points']
+    resumen_df = _payload['resumen_df']
+    calendar_results_lookup = _payload['calendar_results_lookup']
+    team_stats_lookup = _payload['team_stats_lookup']
+    team_matches_lookup = _payload['team_matches_lookup']
+    future_group_matches_lookup = _payload['future_group_matches_lookup']
+    classification_html = _payload['classification_html']
+    calendar_html = _payload['calendar_html']
+    best_options_by_level = _payload['best_options_by_level']
+    perfect_summary = _payload['perfect_summary']
+    similarity_html = _payload['similarity_html']
+    chart_html = _payload['chart_html']
+    total_porras = _payload['total_porras']
+    podium_html = _payload['podium_html']
 except Exception:
     classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame(); calendar_results_lookup = {}; team_stats_lookup = {}; team_matches_lookup = {}; future_group_matches_lookup = {}
-    classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); best_options_by_level = []; perfect_summary = {'total_possible': 0, 'closest': [], 'max_achieved': 0, 'percentage': 0.0}; similarity_html = ''; chart_html = ''; total_porras = 0
+    classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); best_options_by_level = []; perfect_summary = {'total_possible': 0, 'closest': [], 'max_achieved': 0, 'percentage': 0.0}; similarity_html = ''; chart_html = ''; total_porras = 0; podium_html = render_podium_html(pd.DataFrame(), 0, PRICE_PER_ENTRY)
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
 premio_segunda = round(recaudacion * 0.30, 2)
-podium_html = render_podium_html(classification_df, total_porras, PRICE_PER_ENTRY)
 
 style = f"""
 <style>
