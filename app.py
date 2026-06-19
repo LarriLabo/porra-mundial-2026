@@ -780,6 +780,9 @@ def build_podium_data(classification_df, total_entries, price_per_entry=10):
             'size': int(len(subset))
         }
 
+    first_group = groups.get(1)
+    first_group_tied = bool(first_group and first_group['size'] > 1)
+
     for rank, badge, title in [(1, 'gold', '1er puesto'), (2, 'silver', '2º puesto'), (3, 'bronze', '3er puesto')]:
         group = groups.get(rank)
         if group is None:
@@ -791,20 +794,22 @@ def build_podium_data(classification_df, total_entries, price_per_entry=10):
         total_prize = 0.0
         note = 'Llorería' if rank == 3 else 'Sin premio'
         if rank == 1:
-            total_prize = first_total
-            note = '70% del bote'
+            total_prize = recaudacion_total if first_group_tied else first_total
+            note = f"Premio repartido entre {group['size']} participantes" if first_group_tied else '70% del bote'
         elif rank == 2:
-            if groups.get(1) and groups[1]['size'] > 1:
+            if first_group_tied:
                 total_prize = 0.0
                 note = 'Sin premio por empate en 1º'
             else:
                 total_prize = second_total
                 note = '30% del bote'
+
         per_prize = round(total_prize / group['size'], 2) if group['size'] and rank in (1, 2) else 0.0
-        if group['size'] > 1 and total_prize > 0:
-            note = f"Premio repartido entre {group['size']} participantes"
         if rank == 3:
             note = 'Llorería'
+        elif rank == 2 and not first_group_tied and group['size'] > 1 and total_prize > 0:
+            note = f"Premio repartido entre {group['size']} participantes"
+
         data.append({'rank': rank, 'title': title, 'names': group['names'], 'per_prize': per_prize, 'tie_count': group['size'], 'badge': badge, 'note': note})
     return data
 
