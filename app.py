@@ -741,6 +741,188 @@ def render_classification_block(df, bets_df=None, selection_points=None, team_st
     return ''.join(parts)
 
 
+
+def parse_selection_status(raw: pd.DataFrame) -> dict:
+    """Lee la columna O de la pestaña Puntos.
+    Una selección continúa si en esa columna aparece una S.
+    Si la columna O no existe, se devuelve un diccionario vacío para mantener compatibilidad.
+    """
+    status_lookup = {}
+    if raw is None or raw.empty or raw.shape[1] <= 14:
+        return status_lookup
+
+    selection_col = 5   # Columna F: selección
+    status_col = 14     # Columna O: continúa (S)
+
+    for ridx in range(len(raw)):
+        selection = raw.iat[ridx, selection_col] if selection_col < raw.shape[1] else None
+        status = raw.iat[ridx, status_col] if status_col < raw.shape[1] else None
+        if pd.isna(selection):
+            continue
+        selection_text = str(selection).replace('\xa0', ' ').strip()
+        if not selection_text:
+            continue
+        selection_upper = selection_text.upper()
+        if selection_upper in {'SELECCIÓN', 'SELECCIONES', 'SELECCION', 'PARTICIPANTE', 'POS', 'PUNTOS TOTALES'}:
+            continue
+
+        status_text = '' if pd.isna(status) else str(status).replace('\xa0', ' ').strip()
+        status_plain = normalize_text_plain(status_text)
+        is_active = status_plain == 's'
+
+        status_lookup[normalize_selection_key(selection_text)] = is_active
+        status_lookup[normalize_team_key(selection_text)] = is_active
+    return status_lookup
+
+
+def is_selection_active(selection_text: str, active_selection_lookup=None) -> bool:
+    if not active_selection_lookup:
+        return True
+    selection_text = str(selection_text).replace('\xa0', ' ').strip()
+    if not selection_text:
+        return False
+    selection_key = normalize_selection_key(selection_text)
+    team_key = normalize_team_key(selection_text)
+    if selection_key in active_selection_lookup:
+        return bool(active_selection_lookup.get(selection_key))
+    if team_key in active_selection_lookup:
+        return bool(active_selection_lookup.get(team_key))
+    return False
+
+
+def count_active_choices(choices, levels, active_selection_lookup=None) -> int:
+    if not isinstance(choices, dict):
+        return 0
+    return sum(1 for level in levels if is_selection_active(choices.get(level, ''), active_selection_lookup))
+
+
+def render_participant_picks_html(choices, levels, selection_points=None, team_stats_lookup=None, team_matches_lookup=None, future_group_matches_lookup=None, active_selection_lookup=None, only_active=False):
+    selection_points = selection_points or {}
+    team_stats_lookup = team_stats_lookup or {}
+    team_matches_lookup = team_matches_lookup or {}
+    future_group_matches_lookup = future_group_matches_lookup or {}
+    active_selection_lookup = active_selection_lookup or {}
+    parts = ["<div class='participant-picks'>"]
+    rendered = 0
+    for level in levels:
+        team_value = choices.get(level, '') if isinstance(choices, dict) else ''
+        team_text = str(team_value).replace('\xa0', ' ').strip()
+        active = is_selection_active(team_text, active_selection_lookup) if team_text else True
+        if only_active and team_text and not active:
+            continue
+        team = escape_html(team_text) if team_text else '—'
+        color = LEVEL_COLORS.get(level, C_PRIMARY_DARK)
+        pts_val = selection_points.get(normalize_selection_key(team_text), '') if team_text else ''
+        pts_html = f"{escape_html(pts_val)} pts" if pts_val != '' else '—'
+        team_key = normalize_team_key(team_text) if team_text else ''
+        played = team_stats_lookup.get(team_key, {}).get('played', 0) if team_text else 0
+        balls_html = ''
+        if played > 0:
+            balls_html = ''.join(f"<img class='pick-played-ball' src='{TRIONDA_BALL_URI}' alt='Balón Trionda'>" for _ in range(int(played)))
+            balls_html = f"<span class='pick-played-icons' title='{int(played)} partido{'s' if int(played) != 1 else ''} jugado{'s' if int(played) != 1 else ''}'>{balls_html}</span>"
+        inactive_label = "<span class='pick-status pick-status--out'>Eliminada</span>" if team_text and not active and active_selection_lookup else ''
+        inactive_class = ' pick-chip--inactive' if team_text and not active and active_selection_lookup else ''
+        chip_html = f"<div class='pick-chip{inactive_class}'><span class='pick-main'><span class='pick-level' style='background:{color};'>{escape_html(level)}</span><span class='pick-team'>{team}</span>{inactive_label}</span><span class='pick-points'>{balls_html}<span class='pick-points-value'>{pts_html}</span></span></div>"
+        rendered += 1
+        if not team_text:
+            parts.append(chip_html)
+            continue
+        played_matches = team_matches_lookup.get(team_key, [])
+        future_group_matches = future_group_matches_lookup.get(team_key, [])
+        body_parts = ["<div class='pick-match-body'>"]
+        body_parts.append("<div class='pick-section-title'>Partidos jugados</div>")
+        if played_matches:
+            body_parts.append("<div class='pick-match-list'>")
+            for match in played_matches:
+                dt = escape_html(str(match.get('datetime_text', '')).strip()) or 'Partido disputado'
+                opponent = escape_html(str(match.get('opponent_name', '')).strip()) or 'Rival'
+                score = escape_html(str(match.get('score_text', '')).strip()) or '—'
+                body_parts.append(f"<div class='pick-match-card'><div class='pick-match-top'><span class='pick-match-date'>{dt}</span><span class='pick-match-score'>{score}</span></div><div class='pick-match-opponent'>vs {opponent}</div></div>")
+            body_parts.append("</div>")
+        else:
+            body_parts.append("<div class='pick-match-empty'>Todavía no ha jugado partidos.</div>")
+        body_parts.append("<div class='pick-section-title'>Próximos partidos de grupos</div>")
+        if future_group_matches:
+            body_parts.append("<div class='pick-match-list'>")
+            for match in future_group_matches:
+                dt = escape_html(' · '.join(part for part in [str(match.get('date', '')).strip(), str(match.get('time', '')).strip()] if part)) or 'Fecha por definir'
+                opponent = escape_html(str(match.get('opponent_name', '')).strip()) or 'Rival'
+                grp = escape_html(str(match.get('group', '')).strip())
+                grp_html = f"<span class='pick-match-phase'>{grp}</span>" if grp else ''
+                body_parts.append(f"<div class='pick-match-card pick-match-card--future'><div class='pick-match-top'><span class='pick-match-date'>{dt}</span>{grp_html}</div><div class='pick-match-opponent'>vs {opponent}</div></div>")
+            body_parts.append("</div>")
+        else:
+            body_parts.append("<div class='pick-match-empty'>No le quedan partidos de grupos por jugar.</div>")
+        body_parts.append("<div class='pick-section-title'>Si clasifica a eliminatorias</div>")
+        body_parts.append("<div class='pick-match-list'>")
+        for phase in CALENDAR_TAIL_PHASES:
+            phase_name = escape_html(str(phase.get('phase', '')).strip())
+            phase_range = escape_html(str(phase.get('range', '')).strip())
+            phase_summary = escape_html(str(phase.get('summary', '')).strip())
+            phase_icon = escape_html(str(phase.get('icon', '')).strip())
+            body_parts.append(f"<div class='pick-match-card pick-match-card--path'><div class='pick-match-top'><span class='pick-match-date'>{phase_icon} {phase_name}</span><span class='pick-match-phase'>{phase_range}</span></div><div class='pick-match-opponent'>{phase_summary}</div></div>")
+        body_parts.append("</div>")
+        body_parts.append("</div>")
+        parts.append(f"<details class='pick-details'><summary class='pick-summary'>{chip_html}</summary>{''.join(body_parts)}</details>")
+    if rendered == 0:
+        parts.append("<div class='pick-match-empty'>No continúan selecciones de este participante.</div>")
+    parts.append("</div>")
+    return ''.join(parts)
+
+
+def render_participant_selection_block(df, selection_points=None, team_stats_lookup=None, future_group_matches_lookup=None, team_matches_lookup=None, active_selection_lookup=None):
+    records, levels = get_bet_records(df)
+    selection_points = selection_points or {}
+    team_stats_lookup = team_stats_lookup or {}
+    future_group_matches_lookup = future_group_matches_lookup or {}
+    team_matches_lookup = team_matches_lookup or {}
+    active_selection_lookup = active_selection_lookup or {}
+    if not records or not levels:
+        return "<div class='analysis-box'><div class='participant-empty'>No hay datos de participantes disponibles.</div></div>"
+    parts = ["<div class='participant-accordion'>"]
+    for rec in records:
+        name = escape_html(rec.get('participante', 'Participante'))
+        active_count = count_active_choices(rec.get('choices', {}), levels, active_selection_lookup)
+        active_label = f"Continúa 1 selección" if active_count == 1 else f"Continúan {active_count} selecciones"
+        chips_html = render_participant_picks_html(rec.get('choices', {}), levels, selection_points, team_stats_lookup, team_matches_lookup, future_group_matches_lookup, active_selection_lookup, only_active=False)
+        parts.append(f"<details class='participant-details'><summary class='participant-summary'><span>{name}</span><span class='classification-active-count'>{escape_html(active_label)}</span></summary><div class='participant-body'>{chips_html}</div></details>")
+    parts.append("</div>")
+    return ''.join(parts)
+
+
+def render_classification_block(df, bets_df=None, selection_points=None, team_stats_lookup=None, future_group_matches_lookup=None, team_matches_lookup=None, active_selection_lookup=None):
+    if df is None or df.empty:
+        return "<div class='analysis-box'><div class='participant-empty'>Todavía no hay datos suficientes para mostrar la clasificación.</div></div>"
+    participant_lookup, levels = build_participant_selection_lookup(bets_df) if bets_df is not None else ({}, [])
+    selection_points = selection_points or {}
+    team_stats_lookup = team_stats_lookup or {}
+    future_group_matches_lookup = future_group_matches_lookup or {}
+    team_matches_lookup = team_matches_lookup or {}
+    active_selection_lookup = active_selection_lookup or {}
+    min_points = int(df['PUNTOS_TOTALES'].min()) if 'PUNTOS_TOTALES' in df.columns and not df['PUNTOS_TOTALES'].isna().all() else None
+    parts = ["<div class='classification-board'>"]
+    for _, row in df.iterrows():
+        pos = int(row['POS_ORDENADA']) if pd.notna(row['POS_ORDENADA']) else '-'
+        badge_class = 'gold' if pos == 1 else 'silver' if pos == 2 else 'bronze' if pos == 3 else ''
+        raw_name = str(row['PARTICIPANTE']).strip()
+        name = escape_html(raw_name)
+        points = int(row['PUNTOS_TOTALES']) if pd.notna(row['PUNTOS_TOTALES']) else 0
+        pdata = participant_lookup.get(normalize_person_key(raw_name))
+        active_count = count_active_choices(pdata.get('choices', {}) if pdata else {}, levels, active_selection_lookup) if levels else 0
+        active_label = f"Continúa 1 selección" if active_count == 1 else f"Continúan {active_count} selecciones"
+        name_html = f"<div class='classification-name'><span class='classification-name-text'>{name}</span><span class='classification-active-count'>{escape_html(active_label)}</span></div>"
+        is_last_group = min_points is not None and points == min_points
+        pos_html = f"<div class='classification-pos classification-pos--lantern' title='Farolillo rojo'><span class='classification-lantern-number'>{pos}</span></div>" if is_last_group else f"<div class='classification-pos {badge_class}'>{pos}</div>"
+        row_html = f"<div class='classification-row {'classification-row--last' if is_last_group else ''}'>{pos_html}{name_html}<div class='classification-points-wrap'><div class='classification-points-label'>Puntos</div><div class='classification-points'>{points}</div></div></div>"
+        if pdata and levels:
+            picks_html = render_participant_picks_html(pdata.get('choices', {}), levels, selection_points, team_stats_lookup, team_matches_lookup, future_group_matches_lookup, active_selection_lookup, only_active=True)
+            parts.append(f"<details class='classification-details'><summary class='classification-summary'>{row_html}</summary><div class='classification-body'>{picks_html}</div></details>")
+        else:
+            parts.append(row_html)
+    parts.append("</div>")
+    return ''.join(parts)
+
+
 def format_eur(amount):
     formatted = f"{float(amount):,.2f}"
     formatted = formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -853,6 +1035,7 @@ def build_app_payload():
 
     classification_df = parse_classification(puntos_raw)
     selection_points = parse_selection_points(puntos_raw)
+    active_selection_lookup = parse_selection_status(puntos_raw)
     fase_grupos_results = parse_match_results_sheet(fase_grupos_raw)
     eliminatorias_results = parse_match_results_sheet(eliminatorias_raw)
     team_stats_lookup = build_team_stats_lookup(fase_grupos_results, eliminatorias_results)
@@ -860,7 +1043,7 @@ def build_app_payload():
     calendar_results_lookup = build_calendar_results_lookup(fase_grupos_results, eliminatorias_results)
     future_group_matches_lookup = build_future_group_matches_lookup(calendar_results_lookup)
     classification_df = apply_classification_tiebreakers(classification_df, resumen_df, team_stats_lookup)
-    classification_html = render_classification_block(classification_df, resumen_df, selection_points, team_stats_lookup, future_group_matches_lookup, team_matches_lookup)
+    classification_html = render_classification_block(classification_df, resumen_df, selection_points, team_stats_lookup, future_group_matches_lookup, team_matches_lookup, active_selection_lookup)
     calendar_html = render_calendar_content(calendar_results_lookup)
     best_options_by_level = build_best_options_by_level(selection_points)
     perfect_summary = build_perfect_selection_summary(resumen_df, selection_points, best_options_by_level)
@@ -872,6 +1055,7 @@ def build_app_payload():
     return {
         'classification_df': classification_df,
         'selection_points': selection_points,
+        'active_selection_lookup': active_selection_lookup,
         'resumen_df': resumen_df,
         'calendar_results_lookup': calendar_results_lookup,
         'team_stats_lookup': team_stats_lookup,
@@ -891,6 +1075,7 @@ try:
     _payload = build_app_payload()
     classification_df = _payload['classification_df']
     selection_points = _payload['selection_points']
+    active_selection_lookup = _payload.get('active_selection_lookup', {})
     resumen_df = _payload['resumen_df']
     calendar_results_lookup = _payload['calendar_results_lookup']
     team_stats_lookup = _payload['team_stats_lookup']
@@ -905,7 +1090,7 @@ try:
     total_porras = _payload['total_porras']
     podium_html = _payload['podium_html']
 except Exception:
-    classification_df = pd.DataFrame(); selection_points = {}; resumen_df = pd.DataFrame(); calendar_results_lookup = {}; team_stats_lookup = {}; team_matches_lookup = {}; future_group_matches_lookup = {}
+    classification_df = pd.DataFrame(); selection_points = {}; active_selection_lookup = {}; resumen_df = pd.DataFrame(); calendar_results_lookup = {}; team_stats_lookup = {}; team_matches_lookup = {}; future_group_matches_lookup = {}
     classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); best_options_by_level = []; perfect_summary = {'total_possible': 0, 'closest': [], 'max_achieved': 0, 'percentage': 0.0}; similarity_html = ''; chart_html = ''; total_porras = 0; podium_html = render_podium_html(pd.DataFrame(), 0, PRICE_PER_ENTRY)
 
 recaudacion = total_porras * PRICE_PER_ENTRY
@@ -945,7 +1130,7 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .classification-pos.gold {{ background:linear-gradient(135deg, rgba(241,200,49,.26) 0%, rgba(242,142,0,.24) 100%); color:{C_SECONDARY_DARK}; border-color:rgba(242,142,0,.28); }}
 .classification-pos.silver {{ background:linear-gradient(135deg, rgba(156,155,155,.22) 0%, rgba(210,210,210,.26) 100%); color:{C_GRAY_DARK}; border-color:rgba(112,111,111,.20); }}
 .classification-pos.bronze {{ background:linear-gradient(135deg, rgba(204,97,0,.20) 0%, rgba(242,142,0,.18) 100%); color:{C_SECONDARY_DARK}; border-color:rgba(204,97,0,.22); }}
-.classification-name {{ color:{C_PRIMARY_DARK}; font-size:1.04rem; font-weight:900; line-height:1.25; overflow-wrap:anywhere; }}
+.classification-name {{ color:{C_PRIMARY_DARK}; font-size:1.04rem; font-weight:900; line-height:1.25; overflow-wrap:anywhere; display:flex; flex-direction:column; gap:.28rem; }} .classification-name-text {{ display:block; }} .classification-active-count {{ align-self:flex-start; display:inline-flex; align-items:center; justify-content:center; width:fit-content; border-radius:999px; background:rgba(50,125,142,.08); border:1px solid rgba(50,125,142,.12); color:{C_PRIMARY_DARK}; font-size:.74rem; font-weight:900; line-height:1; padding:.22rem .52rem; white-space:nowrap; }}
 .classification-pos--lantern {{ width:48px; height:48px; border:none; border-radius:0; background:transparent url('{RED_LANTERN_BG_URI}') center / 44px 44px no-repeat; box-shadow:none; color:white; position:relative; }}
 .classification-lantern-number {{ position:relative; top:1px; font-size:1rem; font-weight:900; color:white; line-height:1; text-shadow:0 1px 2px rgba(0,0,0,.22); }}
 .classification-row--last {{ border-color:rgba(204,97,0,.18); box-shadow:0 8px 18px rgba(204,97,0,.08); }}
@@ -968,10 +1153,10 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .affinity-stats {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:.9rem; }} .affinity-stat {{ background:rgba(50,125,142,.05); border:1px solid rgba(50,125,142,.10); border-radius:18px; padding:.8rem .9rem; text-align:center; }} .affinity-stat-value {{ color:{C_SECONDARY_DARK}; font-size:1.6rem; font-weight:900; }} .affinity-stat-label {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:800; margin-top:.28rem; line-height:1.25; }} .affinity-item {{ color:{C_GRAY_DARK}; font-size:.92rem; line-height:1.45; font-weight:600; margin-bottom:.55rem; }} .affinity-item:last-child {{ margin-bottom:0; }} .affinity-muted {{ color:{C_GRAY}; }} .affinity-card--wide {{ grid-column:1 / -1; }} .best-options-list {{ display:flex; flex-direction:column; gap:.62rem; }} .best-option-row {{ background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:18px; padding:.72rem .82rem; }} .best-option-head {{ display:flex; align-items:center; justify-content:space-between; gap:.7rem; margin-bottom:.48rem; }} .best-option-level {{ color:white; font-size:.77rem; font-weight:900; border-radius:999px; padding:.18rem .55rem; white-space:nowrap; }} .best-option-points {{ color:{C_SECONDARY_DARK}; font-size:.86rem; font-weight:900; white-space:nowrap; }} .best-option-values {{ color:{C_PRIMARY_DARK}; font-size:.94rem; font-weight:800; line-height:1.35; overflow-wrap:anywhere; }} .best-option-team {{ display:inline; }} .best-summary-box {{ background:rgba(0,74,95,.04); border:1px solid rgba(0,74,95,.08); border-radius:18px; padding:.8rem .9rem; margin-top:.2rem; }} .best-summary-line {{ color:{C_GRAY_DARK}; font-size:.93rem; line-height:1.45; font-weight:700; }} .best-summary-line + .best-summary-line {{ margin-top:.42rem; }}
 .level-card-title {{ margin-bottom:.6rem; line-height:1.25; }} .level-teams {{ font-weight:700; font-size:.84rem; color:#706F6F; margin-top:.18rem; line-height:1.35; }} .bar-row {{ margin-bottom:.58rem; }} .bar-top {{ display:flex; justify-content:space-between; gap:.75rem; align-items:center; margin-bottom:.18rem; }} .bar-team {{ color:{C_GRAY_DARK}; font-size:.9rem; font-weight:700; overflow-wrap:anywhere; }} .bar-pct {{ color:{C_PRIMARY_DARK}; font-size:.88rem; font-weight:900; white-space:nowrap; }} .bar-track {{ width:100%; height:12px; background:rgba(50,125,142,.09); border-radius:999px; overflow:hidden; }} .bar-fill {{ height:100%; border-radius:999px; }}
 .participant-accordion {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.85rem; margin-top:.25rem; align-items:start; }} .participant-details {{ height:fit-content; }} .participant-picks {{ display:flex; flex-direction:column; gap:.42rem; }}
-.pick-details {{ background:transparent; border:none; box-shadow:none; }} .pick-summary {{ list-style:none; cursor:pointer; display:block; }} .pick-summary::-webkit-details-marker {{ display:none; }} .pick-chip {{ display:flex; align-items:center; justify-content:space-between; gap:.55rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-summary .pick-chip {{ transition:background .18s ease, border-color .18s ease, box-shadow .18s ease; }} .pick-details[open] .pick-chip {{ background:rgba(50,125,142,.06); border-color:rgba(50,125,142,.16); box-shadow:0 4px 10px rgba(0,0,0,.03); }} .pick-main {{ display:flex; align-items:center; gap:.45rem; min-width:0; flex:1 1 auto; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; min-width:0; flex:1 1 auto; }} .pick-points {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:900; line-height:1; min-width:56px; text-align:right; flex:0 0 auto; padding-right:.18rem; white-space:nowrap; display:inline-flex; align-items:center; justify-content:flex-end; gap:.24rem; }} .pick-played-icons {{ display:inline-flex; align-items:center; gap:2px; }} .pick-played-ball {{ width:12px; height:12px; object-fit:contain; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.08)); }} .pick-points-value {{ white-space:nowrap; }} .pick-match-body {{ padding:.35rem .3rem 0 .3rem; display:flex; flex-direction:column; gap:.42rem; }} .pick-section-title {{ color:{C_PRIMARY_DARK}; font-size:.76rem; font-weight:900; letter-spacing:.02em; text-transform:uppercase; padding:.1rem .2rem 0; }} .pick-match-list {{ display:flex; flex-direction:column; gap:.34rem; }} .pick-match-card {{ background:white; border:1px solid rgba(50,125,142,.10); border-radius:16px; padding:.52rem .65rem; box-shadow:0 4px 10px rgba(0,0,0,.03); }} .pick-match-card--future {{ background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(245,250,251,1) 100%); }} .pick-match-card--path {{ background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,255,1) 100%); border-color:rgba(50,125,142,.08); }} .pick-match-top {{ display:flex; align-items:flex-start; justify-content:space-between; gap:.7rem; }} .pick-match-date {{ color:{C_GRAY}; font-size:.72rem; font-weight:800; line-height:1.2; }} .pick-match-score {{ color:{C_SECONDARY_DARK}; font-size:.95rem; font-weight:900; line-height:1; white-space:nowrap; }} .pick-match-phase {{ color:{C_PRIMARY_DARK}; font-size:.73rem; font-weight:800; line-height:1.2; white-space:nowrap; }} .pick-match-opponent {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:800; line-height:1.25; margin-top:.28rem; overflow-wrap:anywhere; }} .pick-match-empty {{ color:{C_GRAY_DARK}; font-size:.82rem; font-weight:700; line-height:1.35; padding:.15rem .2rem 0 .2rem; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
+.pick-details {{ background:transparent; border:none; box-shadow:none; }} .pick-summary {{ list-style:none; cursor:pointer; display:block; }} .pick-summary::-webkit-details-marker {{ display:none; }} .pick-chip {{ display:flex; align-items:center; justify-content:space-between; gap:.55rem; background:rgba(50,125,142,.04); border:1px solid rgba(50,125,142,.08); border-radius:999px; padding:.22rem .38rem; min-height:30px; }} .pick-summary .pick-chip {{ transition:background .18s ease, border-color .18s ease, box-shadow .18s ease; }} .pick-details[open] .pick-chip {{ background:rgba(50,125,142,.06); border-color:rgba(50,125,142,.16); box-shadow:0 4px 10px rgba(0,0,0,.03); }} .pick-main {{ display:flex; align-items:center; gap:.45rem; min-width:0; flex:1 1 auto; }} .pick-level {{ color:white; font-size:.71rem; font-weight:900; border-radius:999px; padding:.12rem .42rem; white-space:nowrap; min-width:58px; text-align:center; }} .pick-team {{ color:{C_GRAY_DARK}; font-size:.84rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; min-width:0; flex:1 1 auto; }} .pick-points {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:900; line-height:1; min-width:56px; text-align:right; flex:0 0 auto; padding-right:.18rem; white-space:nowrap; display:inline-flex; align-items:center; justify-content:flex-end; gap:.24rem; }} .pick-played-icons {{ display:inline-flex; align-items:center; gap:2px; }} .pick-played-ball {{ width:12px; height:12px; object-fit:contain; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.08)); }} .pick-points-value {{ white-space:nowrap; }} .pick-chip--inactive {{ opacity:.62; background:rgba(112,111,111,.055); border-color:rgba(112,111,111,.16); }} .pick-chip--inactive .pick-team {{ text-decoration:line-through; text-decoration-thickness:2px; text-decoration-color:{C_SECONDARY_DARK}; color:{C_GRAY}; }} .pick-status {{ display:inline-flex; align-items:center; justify-content:center; border-radius:999px; padding:.12rem .38rem; font-size:.68rem; font-weight:900; line-height:1; white-space:nowrap; }} .pick-status--out {{ color:{C_SECONDARY_DARK}; background:rgba(204,97,0,.10); border:1px solid rgba(204,97,0,.16); }} .pick-match-body {{ padding:.35rem .3rem 0 .3rem; display:flex; flex-direction:column; gap:.42rem; }} .pick-section-title {{ color:{C_PRIMARY_DARK}; font-size:.76rem; font-weight:900; letter-spacing:.02em; text-transform:uppercase; padding:.1rem .2rem 0; }} .pick-match-list {{ display:flex; flex-direction:column; gap:.34rem; }} .pick-match-card {{ background:white; border:1px solid rgba(50,125,142,.10); border-radius:16px; padding:.52rem .65rem; box-shadow:0 4px 10px rgba(0,0,0,.03); }} .pick-match-card--future {{ background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(245,250,251,1) 100%); }} .pick-match-card--path {{ background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,255,1) 100%); border-color:rgba(50,125,142,.08); }} .pick-match-top {{ display:flex; align-items:flex-start; justify-content:space-between; gap:.7rem; }} .pick-match-date {{ color:{C_GRAY}; font-size:.72rem; font-weight:800; line-height:1.2; }} .pick-match-score {{ color:{C_SECONDARY_DARK}; font-size:.95rem; font-weight:900; line-height:1; white-space:nowrap; }} .pick-match-phase {{ color:{C_PRIMARY_DARK}; font-size:.73rem; font-weight:800; line-height:1.2; white-space:nowrap; }} .pick-match-opponent {{ color:{C_PRIMARY_DARK}; font-size:.82rem; font-weight:800; line-height:1.25; margin-top:.28rem; overflow-wrap:anywhere; }} .pick-match-empty {{ color:{C_GRAY_DARK}; font-size:.82rem; font-weight:700; line-height:1.35; padding:.15rem .2rem 0 .2rem; }} .participant-empty {{ color:{C_GRAY_DARK}; font-size:.95rem; font-weight:600; line-height:1.45; }}
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width:980px) {{ .premios-grid, .levels-grid, .affinity-grid, .calendar-tail-grid, .calendar-timeline, .affinity-stats {{ grid-template-columns:1fr; }} .participant-accordion {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .classification-row {{ grid-template-columns:64px 1fr 105px; gap:.8rem; }} .classification-body {{ padding-left:4.95rem; }} .timeline-node:not(:last-child)::after {{ display:none; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo-badge {{ padding:.35rem .45rem; border-radius:20px; }} .hero-logo {{ width:104px; height:104px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .podium-wrap {{ grid-template-columns:1fr; gap:.75rem; align-items:stretch; }} .podium-step {{ min-height:auto; border-radius:22px; padding:.9rem 1rem; display:grid; grid-template-columns:56px minmax(0,1fr) auto; column-gap:.8rem; row-gap:.18rem; align-items:center; text-align:left; }} .podium-step--rank-1, .podium-step--rank-2, .podium-step--rank-3 {{ min-height:auto; transform:none; }} .podium-step--rank-1 {{ order:1; }} .podium-step--rank-2 {{ order:2; }} .podium-step--rank-3 {{ order:3; }} .podium-cup {{ grid-column:1; grid-row:1 / span 4; align-self:start; margin:0; font-size:2.05rem; }} .podium-position {{ grid-column:2; grid-row:1; font-size:.98rem; }} .podium-amount {{ grid-column:3; grid-row:1 / span 2; justify-self:end; align-self:center; font-size:1.55rem; margin:0; white-space:nowrap; }} .podium-names {{ grid-column:2 / 4; grid-row:2; justify-content:flex-start; align-items:flex-start; text-align:left; min-height:auto; margin:.05rem 0 0; font-size:.96rem; }} .podium-shared {{ grid-column:2 / 4; grid-row:3; margin:0; }} .podium-note {{ grid-column:2 / 4; grid-row:4; margin:0; padding-top:0; font-size:.82rem; }} }}
-@media (max-width:640px) {{ .block-container {{ padding-top:.75rem; padding-left:.7rem; padding-right:.7rem; padding-bottom:1.25rem; }} .hero {{ border-radius:24px; padding:1rem .9rem 1.05rem; }} .hero-title-wrap {{ grid-template-columns:1fr; column-gap:0; row-gap:.55rem; max-width:100%; }} .hero-title-block {{ order:2; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:48px minmax(0,1fr); gap:.65rem; padding:.78rem .8rem; align-items:start; }} .classification-body {{ padding:0 0.8rem 0.85rem 0.8rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-pos--lantern {{ width:42px; height:42px; background-size:38px 38px; }} .classification-lantern-number {{ top:1px; font-size:.92rem; }} .classification-name {{ font-size:.95rem; padding-top:.08rem; }} .classification-points-wrap {{ grid-column:2; text-align:left; display:flex; align-items:baseline; gap:.42rem; }} .classification-points-label {{ font-size:.72rem; }} .classification-points {{ font-size:1.22rem; }} .hero-logo-slot {{ width:100%; justify-content:center; }} .hero-logo-slot--left {{ order:1; justify-content:center; }} .hero-logo-slot--right {{ display:none; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:74px; height:74px; }} .hero-title-line1 {{ font-size:1.32rem; }} .hero-title-line2 {{ font-size:1.65rem; }} [data-baseweb="tab-list"] {{ overflow-x:auto; overflow-y:hidden; justify-content:flex-start; padding-bottom:.18rem; }} [data-baseweb="tab"] {{ flex:0 0 auto!important; min-width:max-content!important; padding:.44rem .7rem!important; }} [data-baseweb="tab"] p {{ white-space:nowrap!important; font-size:.83rem!important; }} .premios-box, .calendar-top-card, .analysis-box {{ border-radius:20px; padding:.85rem; }} .match-card {{ grid-template-columns:1fr; gap:.5rem; padding:.75rem; }} .match-side {{ gap:.45rem; }} .match-time {{ font-size:.78rem; }} .pick-team {{ font-size:.8rem; }} .pick-points {{ gap:.18rem; }} .pick-played-ball {{ width:11px; height:11px; }} .pick-match-card {{ padding:.48rem .58rem; }} .pick-match-date {{ font-size:.7rem; }} .pick-match-score {{ font-size:.9rem; }} .pick-match-phase {{ font-size:.69rem; }} .pick-match-opponent {{ font-size:.79rem; }} .podium-step {{ grid-template-columns:44px minmax(0,1fr); row-gap:.15rem; padding:.82rem .85rem; }} .podium-cup {{ font-size:1.75rem; }} .podium-position {{ grid-column:2; font-size:.93rem; }} .podium-amount {{ grid-column:2; grid-row:3; justify-self:start; font-size:1.35rem; margin-top:.1rem; }} .podium-names {{ grid-column:1 / -1; grid-row:2; font-size:.93rem; margin:.1rem 0 0; }} .podium-shared {{ grid-column:1 / -1; grid-row:4; }} .podium-note {{ grid-column:1 / -1; grid-row:5; font-size:.8rem; }} }}
+@media (max-width:640px) {{ .block-container {{ padding-top:.75rem; padding-left:.7rem; padding-right:.7rem; padding-bottom:1.25rem; }} .hero {{ border-radius:24px; padding:1rem .9rem 1.05rem; }} .hero-title-wrap {{ grid-template-columns:1fr; column-gap:0; row-gap:.55rem; max-width:100%; }} .hero-title-block {{ order:2; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:48px minmax(0,1fr); gap:.65rem; padding:.78rem .8rem; align-items:start; }} .classification-active-count {{ font-size:.7rem; white-space:normal; }} .classification-body {{ padding:0 0.8rem 0.85rem 0.8rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-pos--lantern {{ width:42px; height:42px; background-size:38px 38px; }} .classification-lantern-number {{ top:1px; font-size:.92rem; }} .classification-name {{ font-size:.95rem; padding-top:.08rem; }} .classification-points-wrap {{ grid-column:2; text-align:left; display:flex; align-items:baseline; gap:.42rem; }} .classification-points-label {{ font-size:.72rem; }} .classification-points {{ font-size:1.22rem; }} .hero-logo-slot {{ width:100%; justify-content:center; }} .hero-logo-slot--left {{ order:1; justify-content:center; }} .hero-logo-slot--right {{ display:none; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:74px; height:74px; }} .hero-title-line1 {{ font-size:1.32rem; }} .hero-title-line2 {{ font-size:1.65rem; }} [data-baseweb="tab-list"] {{ overflow-x:auto; overflow-y:hidden; justify-content:flex-start; padding-bottom:.18rem; }} [data-baseweb="tab"] {{ flex:0 0 auto!important; min-width:max-content!important; padding:.44rem .7rem!important; }} [data-baseweb="tab"] p {{ white-space:nowrap!important; font-size:.83rem!important; }} .premios-box, .calendar-top-card, .analysis-box {{ border-radius:20px; padding:.85rem; }} .match-card {{ grid-template-columns:1fr; gap:.5rem; padding:.75rem; }} .match-side {{ gap:.45rem; }} .match-time {{ font-size:.78rem; }} .pick-team {{ font-size:.8rem; }} .pick-points {{ gap:.18rem; }} .pick-played-ball {{ width:11px; height:11px; }} .pick-match-card {{ padding:.48rem .58rem; }} .pick-match-date {{ font-size:.7rem; }} .pick-match-score {{ font-size:.9rem; }} .pick-match-phase {{ font-size:.69rem; }} .pick-match-opponent {{ font-size:.79rem; }} .podium-step {{ grid-template-columns:44px minmax(0,1fr); row-gap:.15rem; padding:.82rem .85rem; }} .podium-cup {{ font-size:1.75rem; }} .podium-position {{ grid-column:2; font-size:.93rem; }} .podium-amount {{ grid-column:2; grid-row:3; justify-self:start; font-size:1.35rem; margin-top:.1rem; }} .podium-names {{ grid-column:1 / -1; grid-row:2; font-size:.93rem; margin:.1rem 0 0; }} .podium-shared {{ grid-column:1 / -1; grid-row:4; }} .podium-note {{ grid-column:1 / -1; grid-row:5; font-size:.8rem; }} }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
