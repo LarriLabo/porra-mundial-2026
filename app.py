@@ -923,6 +923,82 @@ def render_classification_block(df, bets_df=None, selection_points=None, team_st
     return ''.join(parts)
 
 
+
+# Versión robusta para fases de grupos y cuadro de eliminatorias.
+# Soporta cabeceras de goles tanto como "Goles"/"Goles" como "Goles1"/"Goles2".
+def parse_match_results_sheet(raw: pd.DataFrame) -> list:
+    results = []
+    if raw is None or raw.empty:
+        return results
+
+    def is_placeholder_team(value) -> bool:
+        if pd.isna(value):
+            return True
+        plain = normalize_text_plain(value)
+        return plain in {'', '-', 'pendiente', 'por definir'}
+
+    for ridx in range(len(raw)):
+        row = raw.iloc[ridx].tolist()
+        norm = [normalize_text_plain(x) if pd.notna(x) else '' for x in row]
+        if 'equipo 1' not in norm or 'equipo 2' not in norm:
+            continue
+
+        team1_col = norm.index('equipo 1')
+        team2_col = norm.index('equipo 2')
+
+        goals1_col = next((i for i, cell in enumerate(norm) if cell in {'goles1', 'goles 1', 'gol1', 'gol 1'}), None)
+        goals2_col = next((i for i, cell in enumerate(norm) if cell in {'goles2', 'goles 2', 'gol2', 'gol 2'}), None)
+
+        if goals1_col is None or goals2_col is None:
+            goals_cols = [i for i, cell in enumerate(norm) if cell in {'goles', 'gol'}]
+            if len(goals_cols) >= 2:
+                goals1_col, goals2_col = goals_cols[0], goals_cols[1]
+            else:
+                continue
+
+        date_col = next((i for i, cell in enumerate(norm) if cell in {'hora fecha', 'hora/fecha', 'fecha hora', 'fecha', 'hora'}), 0)
+        empty_rows = 0
+
+        for dr in range(ridx + 1, len(raw)):
+            vals = raw.iloc[dr].tolist()
+            vals_norm = [normalize_text_plain(x) if pd.notna(x) else '' for x in vals]
+
+            # Nueva cabecera de otro bloque/fase.
+            if 'equipo 1' in vals_norm and 'equipo 2' in vals_norm:
+                break
+
+            team1 = vals[team1_col] if team1_col < len(vals) else None
+            team2 = vals[team2_col] if team2_col < len(vals) else None
+
+            if is_placeholder_team(team1) and is_placeholder_team(team2):
+                empty_rows += 1
+                if empty_rows >= 4:
+                    break
+                continue
+            empty_rows = 0
+
+            if is_placeholder_team(team1) or is_placeholder_team(team2):
+                continue
+
+            team1_text = str(team1).replace('\xa0', ' ').strip()
+            team2_text = str(team2).replace('\xa0', ' ').strip()
+            datetime_value = vals[date_col] if date_col < len(vals) else ''
+            datetime_text = str(datetime_value).replace('\xa0', ' ').strip() if pd.notna(datetime_value) else ''
+
+            results.append({
+                'date_key': normalize_calendar_date_key(datetime_value),
+                'time_key': normalize_time_key(datetime_value),
+                'datetime_text': datetime_text,
+                'team1_key': normalize_team_key(team1_text),
+                'team2_key': normalize_team_key(team2_text),
+                'team1_name': team1_text,
+                'team2_name': team2_text,
+                'score1': parse_score_value(vals[goals1_col] if goals1_col < len(vals) else None),
+                'score2': parse_score_value(vals[goals2_col] if goals2_col < len(vals) else None),
+            })
+    return results
+
+
 def format_eur(amount):
     formatted = f"{float(amount):,.2f}"
     formatted = formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
