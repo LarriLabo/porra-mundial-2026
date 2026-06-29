@@ -999,6 +999,173 @@ def parse_match_results_sheet(raw: pd.DataFrame) -> list:
     return results
 
 
+# Calendario eliminatorias con partidos y resultados
+
+
+def normalize_knockout_phase_name(value: str) -> str:
+    plain = normalize_text_plain(value)
+    if 'dieciseisavos' in plain or 'dieciseisavos de final' in plain or '1 16' in plain:
+        return 'Dieciseisavos'
+    if 'octavos' in plain:
+        return 'Octavos de final'
+    if 'cuartos' in plain:
+        return 'Cuartos de final'
+    if 'semi' in plain:
+        return 'Semifinales'
+    if 'final' in plain or 'tercer puesto' in plain or 'desenlace' in plain:
+        return 'Desenlace'
+    return ''
+
+
+# Versión robusta para fases de grupos y cuadro de eliminatorias.
+# Soporta cabeceras de goles tanto como "Goles"/"Goles" como "Goles1"/"Goles2" y conserva la fase del cruce.
+def parse_match_results_sheet(raw: pd.DataFrame) -> list:
+    results = []
+    if raw is None or raw.empty:
+        return results
+
+    def is_placeholder_team(value) -> bool:
+        if pd.isna(value):
+            return True
+        plain = normalize_text_plain(value)
+        return plain in {'', '-', 'pendiente', 'por definir'}
+
+    def find_phase_for_header(header_row_idx: int) -> str:
+        # Busca hacia arriba una fila de título de fase, como "DIECIEISAVOS DE FINAL" u "OCTAVOS DE FINAL".
+        for rr in range(header_row_idx - 1, max(-1, header_row_idx - 8), -1):
+            row_vals = raw.iloc[rr].tolist()
+            joined = ' '.join(str(x).replace('\xa0', ' ').strip() for x in row_vals if pd.notna(x) and str(x).strip())
+            phase = normalize_knockout_phase_name(joined)
+            if phase:
+                return phase
+        return ''
+
+    for ridx in range(len(raw)):
+        row = raw.iloc[ridx].tolist()
+        norm = [normalize_text_plain(x) if pd.notna(x) else '' for x in row]
+        if 'equipo 1' not in norm or 'equipo 2' not in norm:
+            continue
+
+        phase_name = find_phase_for_header(ridx)
+        team1_col = norm.index('equipo 1')
+        team2_col = norm.index('equipo 2')
+        stadium_col = next((i for i, cell in enumerate(norm) if cell == 'estadio'), None)
+
+        goals1_col = next((i for i, cell in enumerate(norm) if cell in {'goles1', 'goles 1', 'gol1', 'gol 1'}), None)
+        goals2_col = next((i for i, cell in enumerate(norm) if cell in {'goles2', 'goles 2', 'gol2', 'gol 2'}), None)
+
+        if goals1_col is None or goals2_col is None:
+            goals_cols = [i for i, cell in enumerate(norm) if cell in {'goles', 'gol'}]
+            if len(goals_cols) >= 2:
+                goals1_col, goals2_col = goals_cols[0], goals_cols[1]
+            else:
+                continue
+
+        date_col = next((i for i, cell in enumerate(norm) if cell in {'hora fecha', 'hora/fecha', 'fecha hora', 'fecha', 'hora'}), 0)
+        empty_rows = 0
+
+        for dr in range(ridx + 1, len(raw)):
+            vals = raw.iloc[dr].tolist()
+            vals_norm = [normalize_text_plain(x) if pd.notna(x) else '' for x in vals]
+
+            if 'equipo 1' in vals_norm and 'equipo 2' in vals_norm:
+                break
+
+            # Si aparece un nuevo título de fase antes de una nueva cabecera, cerramos este bloque.
+            joined_row = ' '.join(v for v in vals_norm if v)
+            if normalize_knockout_phase_name(joined_row) and not any(x in vals_norm for x in ['equipo 1', 'equipo 2']):
+                break
+
+            team1 = vals[team1_col] if team1_col < len(vals) else None
+            team2 = vals[team2_col] if team2_col < len(vals) else None
+
+            if is_placeholder_team(team1) and is_placeholder_team(team2):
+                empty_rows += 1
+                if empty_rows >= 4:
+                    break
+                continue
+            empty_rows = 0
+
+            if is_placeholder_team(team1) or is_placeholder_team(team2):
+                continue
+
+            team1_text = str(team1).replace('\xa0', ' ').strip()
+            team2_text = str(team2).replace('\xa0', ' ').strip()
+            datetime_value = vals[date_col] if date_col < len(vals) else ''
+            datetime_text = str(datetime_value).replace('\xa0', ' ').strip() if pd.notna(datetime_value) else ''
+            stadium_text = ''
+            if stadium_col is not None and stadium_col < len(vals) and pd.notna(vals[stadium_col]):
+                stadium_text = str(vals[stadium_col]).replace('\xa0', ' ').strip()
+
+            results.append({
+                'phase': phase_name,
+                'stadium': stadium_text,
+                'date_key': normalize_calendar_date_key(datetime_value),
+                'time_key': normalize_time_key(datetime_value),
+                'datetime_text': datetime_text,
+                'team1_key': normalize_team_key(team1_text),
+                'team2_key': normalize_team_key(team2_text),
+                'team1_name': team1_text,
+                'team2_name': team2_text,
+                'score1': parse_score_value(vals[goals1_col] if goals1_col < len(vals) else None),
+                'score2': parse_score_value(vals[goals2_col] if goals2_col < len(vals) else None),
+            })
+    return results
+
+
+def render_knockout_match_cards(matches):
+    parts = ["<div class='match-list'>"]
+    for item in matches or []:
+        date_text = escape_html(str(item.get('date_key', '')).strip() or str(item.get('datetime_text', '')).strip() or 'Fecha por definir')
+        time_text = escape_html(str(item.get('time_key', '')).strip())
+        time_html = f"<div class='match-card-time'>{time_text} h</div>" if time_text else "<div class='match-card-time'>Hora por definir</div>"
+        team1 = escape_html(str(item.get('team1_name', '')).strip())
+        team2 = escape_html(str(item.get('team2_name', '')).strip())
+        stadium = escape_html(str(item.get('stadium', '')).strip())
+        phase = escape_html(str(item.get('phase', '')).strip())
+        group_text = ' · '.join(x for x in [phase, stadium] if x)
+        group_html = f"<div class='match-card-group'>{group_text}</div>" if group_text else ""
+        score1 = item.get('score1', '')
+        score2 = item.get('score2', '')
+        score_html = ""
+        if score1 != '' and score2 != '':
+            score_html = f"<div class='match-card-score'><span class='match-card-score-pill'>{escape_html(score1)}-{escape_html(score2)}</span></div>"
+        parts.append(f"<div class='match-card'><div class='match-card-date'>{date_text}</div><div class='match-card-main'>{time_html}<div class='match-card-title'>{team1} vs {team2}</div>{group_html}</div>{score_html}</div>")
+    parts.append("</div>")
+    return ''.join(parts)
+
+
+def render_tail_phase_cards(knockout_results=None):
+    colors = [C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK]
+    by_phase = {}
+    for item in knockout_results or []:
+        phase = item.get('phase') or ''
+        if phase:
+            by_phase.setdefault(phase, []).append(item)
+    parts = ["<div class='calendar-tail-grid'>"]
+    for idx, p in enumerate(CALENDAR_TAIL_PHASES):
+        accent = colors[idx % len(colors)]
+        phase_name = p['phase']
+        matches = by_phase.get(phase_name, [])
+        if matches:
+            body = render_knockout_match_cards(matches)
+            parts.append(f"<details class='phase-card phase-card--matches' open><summary class='phase-head' style='border-left:6px solid {accent};'><div class='phase-head-main'><span class='phase-head-icon'>{escape_html(p['icon'])}</span><span class='phase-head-title'>{escape_html(phase_name)}</span></div><div class='phase-head-range'>{escape_html(p['range'])}</div><div class='phase-head-summary'>{escape_html(p['summary'])}</div></summary><div class='period-body'>{body}</div></details>")
+        else:
+            parts.append(f"<div class='phase-card'><div class='phase-head' style='border-left:6px solid {accent};'><div class='phase-head-main'><span class='phase-head-icon'>{escape_html(p['icon'])}</span><span class='phase-head-title'>{escape_html(phase_name)}</span></div><div class='phase-head-range'>{escape_html(p['range'])}</div><div class='phase-head-summary'>{escape_html(p['summary'])}</div></div></div>")
+    parts.append("</div>")
+    return ''.join(parts)
+
+
+def render_calendar_content(results_lookup=None, knockout_results=None):
+    colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
+    parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026</div><div class='calendar-timeline'>"]
+    for idx, node in enumerate(TIMELINE_NODES):
+        accent = colors[idx % len(colors)]
+        parts.append(f"<div class='timeline-node'><div class='timeline-icon' style='background:{accent};'>{escape_html(node['icon'])}</div><div class='timeline-phase'>{escape_html(node['phase'])}</div><div class='timeline-range'>{escape_html(node['range'])}</div></div>")
+    parts.append("</div></div>")
+    return ''.join(parts) + render_group_stage_periods_html(results_lookup) + render_tail_phase_cards(knockout_results)
+
+
 def format_eur(amount):
     formatted = f"{float(amount):,.2f}"
     formatted = formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -1120,7 +1287,7 @@ def build_app_payload():
     future_group_matches_lookup = build_future_group_matches_lookup(calendar_results_lookup)
     classification_df = apply_classification_tiebreakers(classification_df, resumen_df, team_stats_lookup)
     classification_html = render_classification_block(classification_df, resumen_df, selection_points, team_stats_lookup, future_group_matches_lookup, team_matches_lookup, active_selection_lookup)
-    calendar_html = render_calendar_content(calendar_results_lookup)
+    calendar_html = render_calendar_content(calendar_results_lookup, eliminatorias_results)
     best_options_by_level = build_best_options_by_level(selection_points)
     perfect_summary = build_perfect_selection_summary(resumen_df, selection_points, best_options_by_level)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df), best_options_by_level, perfect_summary)
