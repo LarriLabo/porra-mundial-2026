@@ -1174,14 +1174,15 @@ def render_tail_phase_cards(knockout_results=None):
 
 
 def render_calendar_content(results_lookup=None, knockout_results=None):
+    # La fase de grupos ya ha terminado: para aligerar la carga, el bloque Calendario
+    # deja de renderizar todos los partidos de grupos y muestra solo la fase de eliminación.
     colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
-    parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026</div><div class='calendar-timeline'>"]
+    parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026 · Fase de eliminación</div><div class='calendar-timeline'>"]
     for idx, node in enumerate(TIMELINE_NODES):
         accent = colors[idx % len(colors)]
         parts.append(f"<div class='timeline-node'><div class='timeline-icon' style='background:{accent};'>{escape_html(node['icon'])}</div><div class='timeline-phase'>{escape_html(node['phase'])}</div><div class='timeline-range'>{escape_html(node['range'])}</div></div>")
     parts.append("</div></div>")
-    return ''.join(parts) + render_group_stage_periods_html(results_lookup) + render_tail_phase_cards(knockout_results)
-
+    return ''.join(parts) + render_tail_phase_cards(knockout_results)
 
 def format_eur(amount):
     formatted = f"{float(amount):,.2f}"
