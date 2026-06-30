@@ -1174,8 +1174,7 @@ def render_tail_phase_cards(knockout_results=None):
 
 
 def render_calendar_content(results_lookup=None, knockout_results=None):
-    # La fase de grupos ya ha terminado: para aligerar la carga, el bloque Calendario
-    # deja de renderizar todos los partidos de grupos y muestra solo la fase de eliminación.
+    # Fase de grupos finalizada: el calendario renderiza solo la fase de eliminación para aligerar la carga.
     colors = [C_SECONDARY_LIGHT, C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK, C_GRAY]
     parts = ["<div class='calendar-top-card'><div class='calendar-head'>Calendario del Mundial 2026 · Fase de eliminación</div><div class='calendar-timeline'>"]
     for idx, node in enumerate(TIMELINE_NODES):
@@ -1183,6 +1182,71 @@ def render_calendar_content(results_lookup=None, knockout_results=None):
         parts.append(f"<div class='timeline-node'><div class='timeline-icon' style='background:{accent};'>{escape_html(node['icon'])}</div><div class='timeline-phase'>{escape_html(node['phase'])}</div><div class='timeline-range'>{escape_html(node['range'])}</div></div>")
     parts.append("</div></div>")
     return ''.join(parts) + render_tail_phase_cards(knockout_results)
+
+
+def get_match_winner_name(item):
+    score1 = item.get('score1', '')
+    score2 = item.get('score2', '')
+    try:
+        if score1 == '' or score2 == '':
+            return ''
+        s1 = int(score1)
+        s2 = int(score2)
+        if s1 > s2:
+            return str(item.get('team1_name', '')).strip()
+        if s2 > s1:
+            return str(item.get('team2_name', '')).strip()
+    except Exception:
+        return ''
+    return ''
+
+
+def render_bracket_team(team_name, score, winner_name):
+    team_text = str(team_name).strip() or 'Por definir'
+    team_safe = escape_html(team_text)
+    score_safe = escape_html(score) if score != '' else '–'
+    is_winner = bool(winner_name and normalize_team_key(team_text) == normalize_team_key(winner_name))
+    cls = ' bracket-team--winner' if is_winner else ''
+    return f"<div class='bracket-team{cls}'><span class='bracket-team-name'>{team_safe}</span><span class='bracket-team-score'>{score_safe}</span></div>"
+
+
+def render_knockout_bracket(knockout_results=None):
+    knockout_results = knockout_results or []
+    phase_order = ['Dieciseisavos', 'Octavos de final', 'Cuartos de final', 'Semifinales', 'Desenlace']
+    phase_meta = {item['phase']: item for item in CALENDAR_TAIL_PHASES}
+    by_phase = {phase: [] for phase in phase_order}
+    for item in knockout_results:
+        phase = item.get('phase') or ''
+        if phase in by_phase:
+            by_phase[phase].append(item)
+    if not any(by_phase.get(phase) for phase in phase_order):
+        return "<div class='bracket-box'><div class='bracket-title'>Cuadro de eliminatorias</div><div class='participant-empty'>Todavía no hay cruces definidos en el cuadro de eliminatorias.</div></div>"
+    parts = ["<div class='bracket-box'><div class='bracket-title'>Cuadro de eliminatorias</div><div class='bracket-subtitle'>Vista resumida de cruces, resultados y avances de la fase de eliminación.</div><div class='bracket-scroll'><div class='bracket-grid'>"]
+    colors = [C_SECONDARY, C_SECONDARY_DARK, C_PRIMARY_LIGHT, C_PRIMARY, C_PRIMARY_DARK]
+    for idx, phase in enumerate(phase_order):
+        matches = by_phase.get(phase, [])
+        if not matches:
+            continue
+        meta = phase_meta.get(phase, {'icon': '🏆', 'range': '', 'summary': ''})
+        accent = colors[idx % len(colors)]
+        parts.append(f"<div class='bracket-round' style='--round-accent:{accent};'><div class='bracket-round-head'><div class='bracket-round-title'><span class='bracket-round-icon'>{escape_html(meta.get('icon', '🏆'))}</span><span>{escape_html(phase)}</span></div><div class='bracket-round-range'>{escape_html(meta.get('range', ''))}</div></div><div class='bracket-match-list'>")
+        for m_idx, item in enumerate(matches, start=1):
+            winner = get_match_winner_name(item)
+            score1 = item.get('score1', '')
+            score2 = item.get('score2', '')
+            score_text = f"{score1}-{score2}" if score1 != '' and score2 != '' else 'Pendiente'
+            date_bits = []
+            if str(item.get('date_key', '')).strip(): date_bits.append(str(item.get('date_key', '')).strip())
+            if str(item.get('time_key', '')).strip(): date_bits.append(str(item.get('time_key', '')).strip())
+            date_text = ' · '.join(date_bits) or str(item.get('datetime_text', '')).strip() or 'Fecha por definir'
+            stadium = str(item.get('stadium', '')).strip()
+            stadium_html = f"<div class='bracket-match-stadium'>{escape_html(stadium)}</div>" if stadium else ''
+            winner_html = f"<div class='bracket-winner'>Avanza: <b>{escape_html(winner)}</b></div>" if winner else ""
+            parts.append(f"<div class='bracket-match'><div class='bracket-match-top'><span class='bracket-match-num'>#{m_idx}</span><span class='bracket-match-date'>{escape_html(date_text)}</span><span class='bracket-match-score-pill'>{escape_html(score_text)}</span></div>{render_bracket_team(item.get('team1_name', ''), score1, winner)}{render_bracket_team(item.get('team2_name', ''), score2, winner)}{stadium_html}{winner_html}</div>")
+        parts.append("</div></div>")
+    parts.append("</div></div></div>")
+    return ''.join(parts)
+
 
 def format_eur(amount):
     formatted = f"{float(amount):,.2f}"
@@ -1306,6 +1370,7 @@ def build_app_payload():
     classification_df = apply_classification_tiebreakers(classification_df, resumen_df, team_stats_lookup)
     classification_html = render_classification_block(classification_df, resumen_df, selection_points, team_stats_lookup, future_group_matches_lookup, team_matches_lookup, active_selection_lookup)
     calendar_html = render_calendar_content(calendar_results_lookup, eliminatorias_results)
+    bracket_html = render_knockout_bracket(eliminatorias_results)
     best_options_by_level = build_best_options_by_level(selection_points)
     perfect_summary = build_perfect_selection_summary(resumen_df, selection_points, best_options_by_level)
     similarity_html = render_similarity_block(analyze_similarity(resumen_df), best_options_by_level, perfect_summary)
@@ -1324,6 +1389,7 @@ def build_app_payload():
         'future_group_matches_lookup': future_group_matches_lookup,
         'classification_html': classification_html,
         'calendar_html': calendar_html,
+        'bracket_html': bracket_html,
         'best_options_by_level': best_options_by_level,
         'perfect_summary': perfect_summary,
         'similarity_html': similarity_html,
@@ -1344,6 +1410,7 @@ try:
     future_group_matches_lookup = _payload['future_group_matches_lookup']
     classification_html = _payload['classification_html']
     calendar_html = _payload['calendar_html']
+    bracket_html = _payload['bracket_html']
     best_options_by_level = _payload['best_options_by_level']
     perfect_summary = _payload['perfect_summary']
     similarity_html = _payload['similarity_html']
@@ -1352,7 +1419,7 @@ try:
     podium_html = _payload['podium_html']
 except Exception:
     classification_df = pd.DataFrame(); selection_points = {}; active_selection_lookup = {}; resumen_df = pd.DataFrame(); calendar_results_lookup = {}; team_stats_lookup = {}; team_matches_lookup = {}; future_group_matches_lookup = {}
-    classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); best_options_by_level = []; perfect_summary = {'total_possible': 0, 'closest': [], 'max_achieved': 0, 'percentage': 0.0}; similarity_html = ''; chart_html = ''; total_porras = 0; podium_html = render_podium_html(pd.DataFrame(), 0, PRICE_PER_ENTRY)
+    classification_html = ''; calendar_html = render_calendar_content(calendar_results_lookup); bracket_html = ''; best_options_by_level = []; perfect_summary = {'total_possible': 0, 'closest': [], 'max_achieved': 0, 'percentage': 0.0}; similarity_html = ''; chart_html = ''; total_porras = 0; podium_html = render_podium_html(pd.DataFrame(), 0, PRICE_PER_ENTRY)
 
 recaudacion = total_porras * PRICE_PER_ENTRY
 premio_ganadora = round(recaudacion * 0.70, 2)
@@ -1418,12 +1485,14 @@ button[role="tab"][aria-selected="true"] {{ background:linear-gradient(135deg, r
 .stButton > button {{ background:{C_PRIMARY_DARK}; color:white; border:none; border-radius:999px; padding:.6rem 1.2rem; font-weight:800; }} .stButton > button:hover {{ background:{C_PRIMARY}; color:white; }}
 @media (max-width:980px) {{ .premios-grid, .levels-grid, .affinity-grid, .calendar-tail-grid, .calendar-timeline, .affinity-stats {{ grid-template-columns:1fr; }} .participant-accordion {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .classification-row {{ grid-template-columns:64px 1fr 105px; gap:.8rem; }} .classification-body {{ padding-left:4.95rem; }} .timeline-node:not(:last-child)::after {{ display:none; }} .hero-title-wrap {{ grid-template-columns:120px 1fr 120px; max-width:920px; }} .hero-logo-slot {{ width:120px; }} .hero-logo-badge {{ padding:.35rem .45rem; border-radius:20px; }} .hero-logo {{ width:104px; height:104px; }} .hero-title-line1 {{ font-size:1.8rem; }} .hero-title-line2 {{ font-size:2.15rem; }} .podium-wrap {{ grid-template-columns:1fr; gap:.75rem; align-items:stretch; }} .podium-step {{ min-height:auto; border-radius:22px; padding:.9rem 1rem; display:grid; grid-template-columns:56px minmax(0,1fr) auto; column-gap:.8rem; row-gap:.18rem; align-items:center; text-align:left; }} .podium-step--rank-1, .podium-step--rank-2, .podium-step--rank-3 {{ min-height:auto; transform:none; }} .podium-step--rank-1 {{ order:1; }} .podium-step--rank-2 {{ order:2; }} .podium-step--rank-3 {{ order:3; }} .podium-cup {{ grid-column:1; grid-row:1 / span 4; align-self:start; margin:0; font-size:2.05rem; }} .podium-position {{ grid-column:2; grid-row:1; font-size:.98rem; }} .podium-amount {{ grid-column:3; grid-row:1 / span 2; justify-self:end; align-self:center; font-size:1.55rem; margin:0; white-space:nowrap; }} .podium-names {{ grid-column:2 / 4; grid-row:2; justify-content:flex-start; align-items:flex-start; text-align:left; min-height:auto; margin:.05rem 0 0; font-size:.96rem; }} .podium-shared {{ grid-column:2 / 4; grid-row:3; margin:0; }} .podium-note {{ grid-column:2 / 4; grid-row:4; margin:0; padding-top:0; font-size:.82rem; }} }}
 @media (max-width:640px) {{ .block-container {{ padding-top:.75rem; padding-left:.7rem; padding-right:.7rem; padding-bottom:1.25rem; }} .hero {{ border-radius:24px; padding:1rem .9rem 1.05rem; }} .hero-title-wrap {{ grid-template-columns:1fr; column-gap:0; row-gap:.55rem; max-width:100%; }} .hero-title-block {{ order:2; }} .participant-accordion {{ grid-template-columns:1fr; }} .classification-row {{ grid-template-columns:48px minmax(0,1fr); gap:.65rem; padding:.78rem .8rem; align-items:start; }} .classification-active-count {{ font-size:.7rem; white-space:normal; }} .classification-body {{ padding:0 0.8rem 0.85rem 0.8rem; }} .classification-pos {{ width:42px; height:42px; font-size:.96rem; }} .classification-pos--lantern {{ width:42px; height:42px; background-size:38px 38px; }} .classification-lantern-number {{ top:1px; font-size:.92rem; }} .classification-name {{ font-size:.95rem; padding-top:.08rem; }} .classification-points-wrap {{ grid-column:2; text-align:left; display:flex; align-items:baseline; gap:.42rem; }} .classification-points-label {{ font-size:.72rem; }} .classification-points {{ font-size:1.22rem; }} .hero-logo-slot {{ width:100%; justify-content:center; }} .hero-logo-slot--left {{ order:1; justify-content:center; }} .hero-logo-slot--right {{ display:none; }} .hero-logo-badge {{ padding:.28rem .34rem; border-radius:16px; }} .hero-logo {{ width:74px; height:74px; }} .hero-title-line1 {{ font-size:1.32rem; }} .hero-title-line2 {{ font-size:1.65rem; }} [data-baseweb="tab-list"] {{ overflow-x:auto; overflow-y:hidden; justify-content:flex-start; padding-bottom:.18rem; }} [data-baseweb="tab"] {{ flex:0 0 auto!important; min-width:max-content!important; padding:.44rem .7rem!important; }} [data-baseweb="tab"] p {{ white-space:nowrap!important; font-size:.83rem!important; }} .premios-box, .calendar-top-card, .analysis-box {{ border-radius:20px; padding:.85rem; }} .match-card {{ grid-template-columns:1fr; gap:.5rem; padding:.75rem; }} .match-side {{ gap:.45rem; }} .match-time {{ font-size:.78rem; }} .pick-team {{ font-size:.8rem; }} .pick-points {{ gap:.18rem; }} .pick-played-ball {{ width:11px; height:11px; }} .pick-match-card {{ padding:.48rem .58rem; }} .pick-match-date {{ font-size:.7rem; }} .pick-match-score {{ font-size:.9rem; }} .pick-match-phase {{ font-size:.69rem; }} .pick-match-opponent {{ font-size:.79rem; }} .podium-step {{ grid-template-columns:44px minmax(0,1fr); row-gap:.15rem; padding:.82rem .85rem; }} .podium-cup {{ font-size:1.75rem; }} .podium-position {{ grid-column:2; font-size:.93rem; }} .podium-amount {{ grid-column:2; grid-row:3; justify-self:start; font-size:1.35rem; margin-top:.1rem; }} .podium-names {{ grid-column:1 / -1; grid-row:2; font-size:.93rem; margin:.1rem 0 0; }} .podium-shared {{ grid-column:1 / -1; grid-row:4; }} .podium-note {{ grid-column:1 / -1; grid-row:5; font-size:.8rem; }} }}
+
+.bracket-box {{ background:white; border:1px solid rgba(50,125,142,.10); border-radius:24px; padding:1.05rem; box-shadow:0 12px 28px rgba(0,0,0,.06); }} .bracket-title {{ color:{C_PRIMARY_DARK}; font-size:1.2rem; font-weight:900; margin-bottom:.22rem; }} .bracket-subtitle {{ color:{C_GRAY}; font-size:.9rem; font-weight:700; margin-bottom:.9rem; }} .bracket-scroll {{ overflow-x:auto; padding-bottom:.25rem; }} .bracket-grid {{ display:grid; grid-template-columns:repeat(5,minmax(220px,1fr)); gap:.9rem; min-width:1100px; align-items:start; }} .bracket-round {{ border-left:6px solid var(--round-accent); background:rgba(50,125,142,.035); border-radius:18px; padding:.78rem .72rem; min-height:100%; }} .bracket-round-head {{ margin-bottom:.65rem; }} .bracket-round-title {{ color:{C_PRIMARY_DARK}; font-size:.96rem; font-weight:900; display:flex; align-items:center; gap:.38rem; }} .bracket-round-range {{ color:{C_SECONDARY_DARK}; font-size:.8rem; font-weight:900; margin-top:.15rem; }} .bracket-match-list {{ display:flex; flex-direction:column; gap:.62rem; }} .bracket-match {{ background:white; border:1px solid rgba(50,125,142,.12); border-radius:16px; padding:.55rem; box-shadow:0 6px 14px rgba(0,0,0,.035); position:relative; }} .bracket-match::after {{ content:''; position:absolute; right:-.78rem; top:50%; width:.78rem; height:2px; background:rgba(50,125,142,.18); }} .bracket-round:last-child .bracket-match::after {{ display:none; }} .bracket-match-top {{ display:flex; align-items:center; justify-content:space-between; gap:.4rem; margin-bottom:.42rem; }} .bracket-match-num {{ color:{C_GRAY}; font-size:.72rem; font-weight:900; }} .bracket-match-date {{ color:{C_SECONDARY_DARK}; font-size:.75rem; font-weight:900; }} .bracket-match-score-pill {{ background:rgba(242,142,0,.12); color:{C_SECONDARY_DARK}; border:1px solid rgba(242,142,0,.20); border-radius:999px; padding:.12rem .42rem; font-size:.78rem; font-weight:900; white-space:nowrap; }} .bracket-team {{ display:flex; align-items:center; justify-content:space-between; gap:.45rem; background:rgba(50,125,142,.045); border-radius:10px; padding:.34rem .42rem; margin-top:.32rem; color:{C_GRAY_DARK}; font-size:.86rem; font-weight:800; }} .bracket-team--winner {{ background:rgba(241,200,49,.18); color:{C_PRIMARY_DARK}; border:1px solid rgba(242,142,0,.22); }} .bracket-team-name {{ overflow-wrap:anywhere; }} .bracket-team-score {{ color:{C_SECONDARY_DARK}; font-weight:900; min-width:22px; text-align:right; }} .bracket-match-stadium {{ color:{C_GRAY}; font-size:.72rem; font-weight:800; margin-top:.42rem; line-height:1.25; }} .bracket-winner {{ color:{C_PRIMARY_DARK}; font-size:.75rem; font-weight:800; margin-top:.35rem; }}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
 st.markdown(f"<div class='hero'><div class='hero-title-wrap'><div class='hero-logo-slot hero-logo-slot--left'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div><div class='hero-title-block'><div class='hero-title-line1'>Versia Servicios Distribuidos</div><div class='hero-title-line2'>Porra Mundial 2026</div></div><div class='hero-logo-slot hero-logo-slot--right'><div class='hero-logo-badge'><img class='hero-logo' src='{LOGO_URI}' alt='Logo Mundial 2026'></div></div></div></div><div class='premios-box'><div class='premios-head'>Podium provisional</div><div class='premios-sub'>El <b>1er puesto</b> recibe el 70% de lo recaudado y el <b>2º puesto</b> el 30%. Si hay empate en el <b>1er puesto</b>, ese premio se reparte entre las personas empatadas y <b>no hay premio para el 2º puesto</b>.</div>{podium_html}</div>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Clasificación", "Calendario", "Curiosidades", "Selección equipos"])
+tabs = st.tabs(["Clasificación", "Calendario", "Cuadro eliminatorias", "Curiosidades", "Selección equipos"])
 with tabs[0]:
     if classification_html:
         st.markdown(classification_html, unsafe_allow_html=True)
@@ -1432,11 +1501,16 @@ with tabs[0]:
 with tabs[1]:
     st.markdown(calendar_html, unsafe_allow_html=True)
 with tabs[2]:
+    if bracket_html:
+        st.markdown(bracket_html, unsafe_allow_html=True)
+    else:
+        st.info("Todavía no hay datos suficientes para mostrar el cuadro de eliminatorias.")
+with tabs[3]:
     if similarity_html:
         st.markdown(similarity_html, unsafe_allow_html=True)
     else:
         st.info("Todavía no hay datos suficientes para mostrar el radar de afinidades.")
-with tabs[3]:
+with tabs[4]:
     if chart_html:
         st.markdown(chart_html, unsafe_allow_html=True)
     else:
