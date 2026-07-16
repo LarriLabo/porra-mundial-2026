@@ -257,6 +257,15 @@ styles = f"""
 .kpi-value {{ color:{C_PRIMARY_DARK}; font-size:1.65rem; font-weight:1000; line-height:1.2; margin-top:.15rem; }}
 .section-title {{ margin:1.5rem 0 .75rem; color:{C_PRIMARY_DARK}; font-size:1.55rem; font-weight:1000; letter-spacing:-.02em; }}
 .section-subtitle {{ color:{C_MUTED}; margin-top:-.45rem; margin-bottom:.8rem; font-weight:650; }}
+
+.top-scenarios-grid {{ display:grid; grid-template-columns:1fr; gap:1.1rem; margin-top:.45rem; }}
+.top-scenario-card {{ background:white; border:1px solid rgba(100,174,188,.24); border-radius:24px; box-shadow:0 12px 28px rgba(0,74,95,.08); overflow:hidden; }}
+.top-scenario-title {{ display:flex; align-items:center; justify-content:space-between; gap:.7rem; padding:.85rem 1rem; color:white; background:linear-gradient(135deg,{C_PRIMARY_DARK},{C_PRIMARY}); font-size:1.06rem; font-weight:1000; }}
+.top-scenario-title.actual {{ background:linear-gradient(135deg,{C_MUTED},{C_PRIMARY_DARK}); }}
+.top-scenario-subtitle {{ background:#f4fafb; color:{C_MUTED}; padding:.55rem 1rem; font-size:.82rem; font-weight:800; border-bottom:1px solid rgba(100,174,188,.18); }}
+.top-scenario-card .rank-table {{ border:0; border-radius:0; box-shadow:none; }}
+.top-scenario-card .rank-head {{ border-radius:0; }}
+@media (min-width: 980px) {{ .top-scenarios-grid {{ grid-template-columns:1fr 1fr; }} .top-scenario-card.actual-card {{ grid-column:1 / -1; }} }}
 .scenario-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:1rem; }}
 .scenario-card {{ background:white; border-radius:26px; padding:1.05rem; border:1px solid rgba(100,174,188,.26); box-shadow:0 16px 36px rgba(0,74,95,.10); overflow:hidden; }}
 .scenario-title {{ display:flex; align-items:center; justify-content:space-between; gap:.7rem; color:{C_PRIMARY_DARK}; font-size:1.35rem; font-weight:1000; margin-bottom:.8rem; }}
@@ -343,14 +352,16 @@ for col, team in zip(scenario_cols, finalists):
         """, unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Top 10 según cada resultado</div>", unsafe_allow_html=True)
-tab1, tab2, tab3 = st.tabs([f"Escenario {finalists[0]}", f"Escenario {finalists[1]}", "Actual"])
-with tab1:
-    st.markdown(render_top_table(sims[finalists[0]], 10), unsafe_allow_html=True)
-with tab2:
-    st.markdown(render_top_table(sims[finalists[1]], 10), unsafe_allow_html=True)
-with tab3:
-    actual = dense_rank(ranking.copy().assign(PUNTOS_ESCENARIO=ranking["PUNTOS_TOTALES"], BONUS_FINAL=0), "PUNTOS_ESCENARIO")
-    st.markdown(render_top_table(actual, 10), unsafe_allow_html=True)
+st.markdown("<div class='section-subtitle'>Los tres escenarios se muestran directamente, sin pestañas ocultas.</div>", unsafe_allow_html=True)
+actual = dense_rank(ranking.copy().assign(PUNTOS_ESCENARIO=ranking["PUNTOS_TOTALES"], BONUS_FINAL=0), "PUNTOS_ESCENARIO")
+st.markdown(
+    "<div class='top-scenarios-grid'>"
+    + "<div class='top-scenario-card'><div class='top-scenario-title'><span>Si gana " + esc(finalists[0]) + "</span><span>+35 campeón</span></div><div class='top-scenario-subtitle'>Clasificación simulada con victoria de " + esc(finalists[0]) + "</div>" + render_top_table(sims[finalists[0]], 10) + "</div>"
+    + "<div class='top-scenario-card'><div class='top-scenario-title'><span>Si gana " + esc(finalists[1]) + "</span><span>+35 campeón</span></div><div class='top-scenario-subtitle'>Clasificación simulada con victoria de " + esc(finalists[1]) + "</div>" + render_top_table(sims[finalists[1]], 10) + "</div>"
+    + "<div class='top-scenario-card actual-card'><div class='top-scenario-title actual'><span>Situación actual</span><span>sin bonus final</span></div><div class='top-scenario-subtitle'>Clasificación antes de disputarse la final</div>" + render_top_table(actual, 10) + "</div>"
+    + "</div>",
+    unsafe_allow_html=True,
+)
 
 st.markdown("<div class='section-title'>Quién llega con quién a la final</div>", unsafe_allow_html=True)
 st.markdown(render_final_backers(apuestas, level_cols, finalists), unsafe_allow_html=True)
