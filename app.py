@@ -113,6 +113,120 @@ html, body, [class*="css"] { font-family:'Montserrat', sans-serif; }
     .rank-row { padding:.68rem .55rem; }
 }
 
+
+/* Podium final protagonista */
+.podium-wrap {
+    background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(238,247,248,.96));
+    border: 1px solid rgba(100,174,188,.35);
+    border-radius: 34px;
+    padding: 1.45rem;
+    box-shadow: 0 22px 48px rgba(0,74,95,.14);
+    position: relative;
+    overflow: hidden;
+}
+.podium-wrap::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top center, rgba(241,200,49,.20), transparent 34%);
+    pointer-events: none;
+}
+.podium-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.25fr 1fr 1fr;
+    gap: 1rem;
+    align-items: stretch;
+}
+.podium-card {
+    border-radius: 28px;
+    padding: 1.15rem;
+    min-height: 250px;
+    border: 1px solid rgba(100,174,188,.30);
+    background: linear-gradient(180deg,#ffffff,#f8fcfd);
+    box-shadow: 0 14px 30px rgba(0,74,95,.09);
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+.podium-card.first {
+    background: linear-gradient(180deg,#fff4bf,#fffdf3 78%);
+    border: 2px solid #F1C831;
+    transform: translateY(-10px);
+    box-shadow: 0 24px 42px rgba(242,142,0,.22);
+}
+.podium-rank-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .8rem;
+}
+.podium-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 46px;
+    min-width: 46px;
+    border-radius: 999px;
+    color: white;
+    background: #004A5F;
+    font-weight: 1000;
+    font-size: 1.2rem;
+    margin: 0;
+}
+.podium-card.first .podium-rank { background:#F28E00; color:white; }
+.podium-place {
+    color:#004A5F;
+    font-weight:1000;
+    font-size:1.22rem;
+    text-align:right;
+}
+.podium-person {
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(100,174,188,.22);
+    border-radius: 22px;
+    padding: .85rem;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
+}
+.podium-card.first .podium-person { border-color: rgba(242,142,0,.25); }
+.podium-name {
+    color:#004A5F;
+    font-size: clamp(1.05rem, 1.3vw, 1.35rem);
+    font-weight:1000;
+    line-height:1.16;
+    margin:0 0 .65rem 0;
+}
+.podium-data-row {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:.55rem;
+}
+.podium-data-box {
+    border-radius: 16px;
+    padding:.58rem .65rem;
+    background:#EEF7F8;
+    color:#004A5F;
+    font-weight:1000;
+    text-align:center;
+}
+.podium-data-label {
+    display:block;
+    font-size:.68rem;
+    color:#706F6F;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    font-weight:900;
+    margin-bottom:.16rem;
+}
+.podium-data-value { font-size:1.15rem; }
+.podium-data-box.prize { background: linear-gradient(135deg,#F28E00,#CC6100); color:white; }
+.podium-data-box.prize .podium-data-label { color:rgba(255,255,255,.85); }
+.podium-empty-prize { opacity:.55; }
+@media (max-width: 980px) {
+    .podium-grid { grid-template-columns:1fr; }
+    .podium-card.first { transform:none; }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -246,21 +360,39 @@ def prize_text(v):
 
 def render_podium(final_df):
     chunks = []
-    for pos, label, icon in [(1, "1º puesto", "🏆"), (2, "2º puesto", "🥈"), (3, "3º puesto", "🥉")]:
+    medals = {1: "🏆", 2: "🥈", 3: "🥉"}
+    labels = {1: "1º puesto", 2: "2º puesto", 3: "3º puesto"}
+    for pos in [1, 2, 3]:
         people = final_df[final_df["POS"] == pos].copy()
         cls = "podium-card first" if pos == 1 else "podium-card"
         if people.empty:
-            body = "<div class='podium-name'>Sin datos</div>"
+            body = "<div class='podium-person'><div class='podium-name'>Sin datos</div></div>"
         else:
-            rows = []
+            person_blocks = []
             for _, r in people.iterrows():
-                ptxt = prize_text(r.get("PREMIO", 0))
-                prize = f"<span class='point-pill prize-pill'>{ptxt}</span>" if ptxt else ""
-                bonus = f"<span class='point-pill bonus-pill'>+{int(r['BONUS_FINAL'])}</span>" if int(r.get("BONUS_FINAL", 0)) else ""
-                rows.append(f"<div class='podium-name'>{esc(r['PARTICIPANTE'])}</div><div class='podium-points'><span class='point-pill'>{int(r['PUNTOS_FINALES'])}</span>{bonus}{prize}</div>")
-            body = "".join(rows)
-        chunks.append(f"<div class='{cls}'><div class='podium-rank'>{icon}</div><div style='color:#004A5F;font-weight:1000;font-size:1.08rem'>{label}</div>{body}</div>")
+                prize = prize_text(r.get("PREMIO", 0)) or "—"
+                prize_extra = "" if prize != "—" else " podium-empty-prize"
+                person_blocks.append(
+                    "<div class='podium-person'>"
+                    + f"<div class='podium-name'>{esc(r['PARTICIPANTE'])}</div>"
+                    + "<div class='podium-data-row'>"
+                    + f"<div class='podium-data-box'><span class='podium-data-label'>Puntos</span><span class='podium-data-value'>{int(r['PUNTOS_FINALES'])}</span></div>"
+                    + f"<div class='podium-data-box prize{prize_extra}'><span class='podium-data-label'>Premio</span><span class='podium-data-value'>{prize}</span></div>"
+                    + "</div>"
+                    + "</div>"
+                )
+            body = "".join(person_blocks)
+        chunks.append(
+            f"<div class='{cls}'>"
+            + "<div class='podium-rank-line'>"
+            + f"<div class='podium-rank'>{medals[pos]}</div>"
+            + f"<div class='podium-place'>{labels[pos]}</div>"
+            + "</div>"
+            + body
+            + "</div>"
+        )
     return "<div class='podium-wrap'><div class='podium-grid'>" + "".join(chunks) + "</div></div>"
+
 
 def render_final_table(df):
     rows = []
@@ -353,7 +485,7 @@ st.markdown(f"<div class='final-banner'><b>🏁 Se acabó la calculadora.</b> Co
 st.markdown("<div class='section-title'>Resumen final</div>", unsafe_allow_html=True)
 st.markdown(f"<div class='metric-grid'><div class='metric-card'><div class='metric-label'>Participaciones</div><div class='metric-value'>{len(apuestas)}</div></div><div class='metric-card'><div class='metric-label'>Bote total</div><div class='metric-value'>{pot} €</div></div><div class='metric-card'><div class='metric-label'>Porras con España</div><div class='metric-value'>{winner_count}</div></div><div class='metric-card'><div class='metric-label'>Puntos líderes</div><div class='metric-value'>{leader_points}</div></div></div>", unsafe_allow_html=True)
 
-st.markdown("<div class='section-title'>Podium final</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>Podium final · Campeones de la porra</div>", unsafe_allow_html=True)
 st.markdown(render_podium(final_df), unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Clasificación final</div>", unsafe_allow_html=True)
