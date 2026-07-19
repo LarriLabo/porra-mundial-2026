@@ -63,6 +63,56 @@ html, body, [class*="css"] { font-family:'Montserrat', sans-serif; }
 .pick-chip { display:flex; justify-content:space-between; gap:.45rem; align-items:center; background:#EEF7F8; border-radius:999px; padding:.35rem .55rem; color:#004A5F; font-weight:850; font-size:.72rem; }
 .pick-chip b { color:#F28E00; }
 @media (max-width: 980px) { .hero-logo-row { grid-template-columns:1fr; } .logo-avatar { display:none; } .metric-grid, .podium-grid, .participant-grid { grid-template-columns:1fr; } .rank-head, .rank-row { grid-template-columns:45px 1.4fr .55fr .55fr .55fr .65fr; font-size:.70rem; } }
+
+/* Clasificación final con patrón visual corporativo */
+.rank-table {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 24px;
+    border: 1px solid rgba(100,174,188,.30);
+    box-shadow: 0 14px 32px rgba(0,74,95,.08);
+    background: white;
+    margin-top: .8rem;
+}
+.rank-head, .rank-row {
+    display: grid;
+    grid-template-columns: 70px minmax(220px, 1.7fr) .75fr .75fr .75fr .8fr;
+    align-items: center;
+    gap: .55rem;
+}
+.rank-head {
+    background: linear-gradient(135deg,#004A5F,#327D8E);
+    color: white;
+    font-size: .78rem;
+    font-weight: 1000;
+    text-transform: uppercase;
+    padding: .78rem .9rem;
+    letter-spacing: .02em;
+}
+.rank-row {
+    padding: .82rem .9rem;
+    font-weight: 850;
+    color: #383737;
+    border-bottom: 1px solid rgba(100,174,188,.13);
+    background: white;
+}
+.rank-row:nth-child(even) { background: #F5FBFC; }
+.rank-row:last-child { border-bottom: 0; }
+.rank-pos { color: #CC6100; font-weight: 1000; }
+.rank-name { color: #004A5F; font-weight: 1000; }
+.rank-current, .rank-bonus, .rank-total, .rank-prize { text-align: right; font-weight: 950; }
+.rank-bonus { color: #327D8E; }
+.rank-total { color: #004A5F; }
+.rank-prize { color: #F28E00; }
+.rank-row.top-1 { background: linear-gradient(90deg,rgba(241,200,49,.20),white 55%); }
+.rank-row.top-2 { background: linear-gradient(90deg,rgba(100,174,188,.14),white 55%); }
+.rank-row.top-3 { background: linear-gradient(90deg,rgba(242,142,0,.11),white 55%); }
+@media (max-width: 780px) {
+    .rank-head, .rank-row { grid-template-columns: 44px 1.4fr .62fr .62fr .62fr .65fr; font-size: .70rem; gap:.35rem; }
+    .rank-head { padding:.65rem .55rem; }
+    .rank-row { padding:.68rem .55rem; }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -217,15 +267,23 @@ def render_final_table(df):
     for _, r in df.iterrows():
         prize = prize_text(r.get("PREMIO", 0))
         bonus = "+" + str(int(r["BONUS_FINAL"])) if int(r.get("BONUS_FINAL", 0)) else "-"
+        pos = int(r["POS"])
+        row_class = "rank-row"
+        if pos == 1:
+            row_class += " top-1"
+        elif pos == 2:
+            row_class += " top-2"
+        elif pos == 3:
+            row_class += " top-3"
         rows.append(
-            "<div class='rank-row'>"
-            f"<div class='rank-pos'>{int(r['POS'])}º</div>"
-            f"<div>{esc(r['PARTICIPANTE'])}</div>"
-            f"<div>{int(r['PUNTOS_TOTALES'])}</div>"
-            f"<div>{bonus}</div>"
-            f"<div class='rank-total'>{int(r['PUNTOS_FINALES'])}</div>"
-            f"<div class='rank-prize'>{prize}</div>"
-            "</div>"
+            "<div class='" + row_class + "'>"
+            + f"<div class='rank-pos'>{pos}º</div>"
+            + f"<div class='rank-name'>{esc(r['PARTICIPANTE'])}</div>"
+            + f"<div class='rank-current'>{int(r['PUNTOS_TOTALES'])}</div>"
+            + f"<div class='rank-bonus'>{bonus}</div>"
+            + f"<div class='rank-total'>{int(r['PUNTOS_FINALES'])}</div>"
+            + f"<div class='rank-prize'>{prize}</div>"
+            + "</div>"
         )
     return (
         "<div class='rank-table'>"
@@ -300,20 +358,7 @@ st.markdown(render_podium(final_df), unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Clasificación final</div>", unsafe_allow_html=True)
 st.markdown("<div class='section-subtitle'>Ordenada por puntos finales. En caso de empate, se comparte posición y la siguiente puntuación pasa al puesto siguiente.</div>", unsafe_allow_html=True)
-classification_view = build_final_classification_df(final_df)
-st.dataframe(
-    classification_view,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "Pos.": st.column_config.TextColumn("Pos.", width="small"),
-        "Participante": st.column_config.TextColumn("Participante", width="large"),
-        "Actual": st.column_config.NumberColumn("Actual", width="small"),
-        "Final": st.column_config.TextColumn("Final", width="small"),
-        "Total": st.column_config.NumberColumn("Total", width="small"),
-        "Premio": st.column_config.TextColumn("Premio", width="small"),
-    },
-)
+st.markdown(render_final_table(final_df), unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Selección de participantes</div>", unsafe_allow_html=True)
 st.markdown("<div class='section-subtitle'>Desplegable compacto con las selecciones de cada participante y su total final.</div>", unsafe_allow_html=True)
